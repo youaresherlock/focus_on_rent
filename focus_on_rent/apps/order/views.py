@@ -3,6 +3,7 @@ from django.http import JsonResponse
 from django.shortcuts import render
 from django.views import View
 
+from apps.order.models import Order
 from focus_on_rent.utils.views import LoginRequiredJSONMixin
 
 
@@ -18,8 +19,20 @@ class ReceiveAndRefuseView(LoginRequiredJSONMixin, View):
         reason = json_dict.get('reason')
         # 效验参数
         if action == 'accept':
-            pass
+            try:
+                Order.objects.filter(id=order_id).update(status=Order.ORDER_STATUS_ENUM["WAIT_PAYMENT"])
+            except Exception as e:
+                return JsonResponse({'errno': 400, 'errmsg': '数据保存失败'})
         elif action == 'reject':
-            pass
+            if not reason:
+                return JsonResponse({'errno': 400, 'errmsg': '缺少reason参数'})
+            try:
+                Order.objects.filter(id=order_id).update(
+                    status=Order.ORDER_STATUS_ENUM["REJECTED"],
+                    comment=reason,
+                )
+            except Exception as e:
+                return JsonResponse({'errno': 400, 'errmsg': '数据保存失败'})
+            return JsonResponse({'errno':0,'errmsg':'操作成功'})
         else:
-            return JsonResponse({'errno': 0, 'errmsg': 'action数据错误'})
+            return JsonResponse({'errno': 400, 'errmsg': 'action数据错误'})
