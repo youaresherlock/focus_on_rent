@@ -2,8 +2,16 @@ import re
 import json
 from django.views import View
 from django.shortcuts import render
+from apps.users.models import User
 from django.http import JsonResponse
+from django_redis import get_redis_connection
+from focus_on_rent.utils.realname import IDauth
 from django.contrib.auth import login, logout, authenticate
+
+
+
+
+
 
 class RegisterView(View):
     def post(self, request):
@@ -15,24 +23,24 @@ class RegisterView(View):
 
 
         if not all([mobile,password,password2]):
+
             return JsonResponse({'errno':400,'errmsg':'缺少必传参数'})
 
         if not re.match(r'^1[3-9]\d{9}$', mobile):
             return JsonResponse({'errno':400, 'errmsg':'手机号不对'})
 
         if not re.match(r'^[a-zA-Z0-9]{8,20}$',password):
-            return JsonResponse({'errno':400, 'errmsg':'参数password错误'})
+            return JsonResponse({'errno': 400, 'errmsg':'参数password错误'})
         if password != password2:
-            return http.JsonResponse({'errno': 400,'errmsg': '两次输入不对'})
-        # 6.mobile检验
+            return JsonResponse({'errno':400, 'errmsg':'确认密码不对'})
         redis_conn = get_redis_connection('verify_code')
         sms_code_server = redis_conn.get('sms_%s' % mobile)
         if not sms_code_server:
-            return http.JsonResponse({'errno':400, 'errmsg':'短信验证码过期'})
+            return JsonResponse({'errno':400, 'errmsg':'短信验证码过期'})
         if sms_code_server.decode() != sms_code_client:
             return JsonResponse({'errno':400, 'errmsg': '验证码有误'})
         try:
-            user = User.objects.create_user(mobile=mobile,
+            user = User.objects.create_user(username=mobile,
                                             password=password)
         except Exception as e:
             return JsonResponse({'errno':400, 'errmsg':'保存数据库错误'})
@@ -97,3 +105,36 @@ class LoginView(View):
         response = JsonResponse({'errno': 0, 'errmsg': '已登出'})
         response.delete_cookie('username')
         return response
+
+class Realname(View):
+    def post(self, request):
+        """登录"""
+        json_dict = json.loads(request.body.decode())
+        real_name = json_dict.get('real_name')
+        id_card = json_dict.get('id_card')
+
+        if not all([real_name,id_card]):
+            return JsonResponse({'code': 400, 'errmsg': '缺少比穿参数'})
+        if not re.match('^[1-9]\d{5}(18|19|([23]\d))\d{2}((0[1-9])|(10|11|12))(([0-2][1-9])|10|20|30|31)\d{3}[0-9Xx]$'):
+            return JsonResponse({'code': 400, 'errmsg': '身份证号码有误' })
+        content = IDauth(real_name, id_card)
+        if content['status'] == '01':
+            try:
+                user = User.objects.create_user(real_name=real_name,
+                                                id_card=id_card)
+                user.save()
+            except Exception as e:
+                return JsonResponse({'errno': 400, 'errmsg': '保存到数据库错误'})
+        else:
+            return JsonResponse({'errno': 400, 'errmsg': '实名制失败'})
+        return JsonResponse({"errno": "0","errmsg": "认证信息保存成功"})
+
+
+
+
+
+
+
+
+
+

@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'apps.users',
     'apps.verifications',
+
 ]
 
 MIDDLEWARE = [
@@ -102,7 +103,7 @@ DATABASES = {
         'HOST': '127.0.0.1',  # 数据库主机
         'PORT': 3306,  # 数据库端口
         'USER': 'root',  # 数据库用户名
-        'PASSWORD': 'x1430371727',  # 数据库用户密码
+        'PASSWORD': 'mysql',  # 数据库用户密码
         'NAME': 'ihome'  # 数据库名字
     }
 }
