@@ -39,6 +39,8 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'corsheaders',
     'apps.users',
+    'apps.house',
+    'apps.order',
     'apps.verifications',
 
 ]
@@ -116,7 +118,7 @@ CACHES = {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
         }
     },
-   "session": { # session 
+    "session": {  # session
         "BACKEND": "django_redis.cache.RedisCache",
         "LOCATION": "redis://localhost:6379/1",
         "OPTIONS": {
@@ -214,3 +216,8 @@ LOGGING = {
 
 AUTH_USER_MODEL = 'users.User'
 
+# 七牛云对象存储配置
+QINIU_ACCESS_KEY = 'woWaPfRhyE_XtOsX12m5kKr6u9tXVYcSMiz-heBe'
+QINIU_SECRET_KEY = 'aWN6n0cLGjIq8F4qe84rG4CHKDx2iLp175V4tTtq'
+QINIU_BUCKET_NAME = 'ihomepictures'
+QINIU_BASE_URL = 'http://qdpj13176.bkt.clouddn.com/'

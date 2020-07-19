@@ -17,4 +17,4 @@ celery_app = Celery('ihome')
 celery_app.config_from_object('celery_tasks.config')
 
 # 注册异步任务
-celery_app.autodiscover_tasks(['celery_tasks.sms', 'celery_tasks.email'])
+celery_app.autodiscover_tasks(['celery_tasks.sms', 'celery_tasks.email', 'celery_tasks.pictures'])

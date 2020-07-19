@@ -1,12 +1,15 @@
 import re
 import json
 from django.views import View
+from apps.users.models import User
 from django.shortcuts import render
 from apps.users.models import User
 from django.http import JsonResponse
 from django_redis import get_redis_connection
 from focus_on_rent.utils.realname import IDauth
 from django.contrib.auth import login, logout, authenticate
+from focus_on_rent.utils.views import LoginRequiredJSONMixin
+
 
 
 
@@ -18,32 +21,28 @@ class RegisterView(View):
         json_dict = json.loads(request.body.decode())
         mobile = json_dict.get('mobile')
         password = json_dict.get('password')
-        password2 = json_dict.get('password2')
         sms_code_client = json_dict.get('phonecode')
 
-
-        if not all([mobile,password,password2]):
-
-            return JsonResponse({'errno':400,'errmsg':'缺少必传参数'})
+        if not all([mobile,password]):
+            return JsonResponse({'errno': 400, 'errmsg': '缺少必传参数'})
 
         if not re.match(r'^1[3-9]\d{9}$', mobile):
-            return JsonResponse({'errno':400, 'errmsg':'手机号不对'})
+            return JsonResponse({'errno': 400, 'errmsg': '手机号不对'})
 
-        if not re.match(r'^[a-zA-Z0-9]{8,20}$',password):
-            return JsonResponse({'errno': 400, 'errmsg':'参数password错误'})
-        if password != password2:
-            return JsonResponse({'errno':400, 'errmsg':'确认密码不对'})
+        if not re.match(r'^[a-zA-Z0-9]{8,20}$', password):
+            return JsonResponse({'errno': 400, 'errmsg': '参数password错误'})
         redis_conn = get_redis_connection('verify_code')
         sms_code_server = redis_conn.get('sms_%s' % mobile)
         if not sms_code_server:
-            return JsonResponse({'errno':400, 'errmsg':'短信验证码过期'})
+            return JsonResponse({'errno': 400, 'errmsg': '短信验证码过期'})
+          
         if sms_code_server.decode() != sms_code_client:
-            return JsonResponse({'errno':400, 'errmsg': '验证码有误'})
+            return JsonResponse({'errno': 400, 'errmsg': '验证码有误'})
         try:
             user = User.objects.create_user(username=mobile,
                                             password=password)
         except Exception as e:
-            return JsonResponse({'errno':400, 'errmsg':'保存数据库错误'})
+            return JsonResponse({'errno': 400, 'errmsg':'保存数据库错误'})
         login(request, user)
         response = JsonResponse({'errno': 0, 'errmsg': 'ok'})
         response.set_cookie('username', user.mobile, max_age=14*24*3600)
@@ -62,7 +61,8 @@ class LoginView(View):
                 "errno": "0",
                 "errmsg": "已登录",
                 "data": {
-                    "name": user.real_name
+                    "user_id": user.id,
+                    "name": user.username
                 }
             })
         else:
@@ -128,6 +128,61 @@ class Realname(View):
         else:
             return JsonResponse({'errno': 400, 'errmsg': '实名制失败'})
         return JsonResponse({"errno": "0","errmsg": "认证信息保存成功"})
+
+
+class UserInfoView(LoginRequiredJSONMixin, View):
+    """个人中心"""
+
+    def get(self, request):
+
+        # 接收参数
+        avatar = request.user.avatar
+        create_time = request.user.create_time
+        mobile = request.user.mobile
+        name = request.user.real_name
+        user_id = request.user.id
+
+        # 用户信息字典
+        data_dict = {
+            "data": {
+                "avatar": avatar,
+                "create_time": create_time,
+                "mobile": mobile,
+                "name": name,
+                "user_id": user_id,
+            },
+            "errmsg": 'OK',
+            "errno": '0',
+        }
+
+        # 响应结果
+        return JsonResponse(data_dict)
+
+
+class ChangeUserNameView(View):
+    """修改用户名"""
+
+    def put(self, request, name):
+
+        # 接收参数
+        json_dict = json.loads(request.body.decode())
+        new_name = json_dict.get('name')
+
+        # 校验参数
+        if new_name:
+            if not re.match(r'^[a-zA-Z_0-9]{6,20}$', new_name):
+                return JsonResponse({'errno': 400, 'errmsg': '用户名格式错误'})
+
+            user = request.user
+            # 修改用户名
+            try:
+                user.username = new_name
+                user.save()
+            except BaseException as e:
+                return JsonResponse({'errno': 400, 'errmsg': '修改用户名失败'})
+
+        # 响应结果
+        return JsonResponse({'errno': '0', 'errmsg': '修改成功'})
 
 
 
