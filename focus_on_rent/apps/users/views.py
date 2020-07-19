@@ -8,9 +8,6 @@ from django_redis import get_redis_connection
 from django.contrib.auth import login, logout, authenticate
 
 
-
-
-
 class RegisterView(View):
     def post(self, request):
         json_dict = json.loads(request.body.decode())
@@ -18,29 +15,25 @@ class RegisterView(View):
         password = json_dict.get('password')
         sms_code_client = json_dict.get('phonecode')
 
-
         if not all([mobile,password]):
-            return JsonResponse({'errno':400,'errmsg':'缺少必传参数'})
+            return JsonResponse({'errno': 400, 'errmsg': '缺少必传参数'})
 
         if not re.match(r'^1[3-9]\d{9}$', mobile):
-            return JsonResponse({'errno':400, 'errmsg':'手机号不对'})
+            return JsonResponse({'errno': 400, 'errmsg': '手机号不对'})
 
-        if not re.match(r'^[a-zA-Z0-9]{8,20}$',password):
-            return JsonResponse({'errno':400, 'errmsg':'参数password错误'})
-        # if password != password2:
-        #     return JsonResponse({'errno': 400,'errmsg': '两次输入不对'})
-        # 6.mobile检验
+        if not re.match(r'^[a-zA-Z0-9]{8,20}$', password):
+            return JsonResponse({'errno': 400, 'errmsg': '参数password错误'})
         redis_conn = get_redis_connection('verify_code')
         sms_code_server = redis_conn.get('sms_%s' % mobile)
         if not sms_code_server:
-            return JsonResponse({'errno':400, 'errmsg':'短信验证码过期'})
+            return JsonResponse({'errno': 400, 'errmsg': '短信验证码过期'})
         if sms_code_server.decode() != sms_code_client:
-            return JsonResponse({'errno':400, 'errmsg': '验证码有误'})
+            return JsonResponse({'errno': 400, 'errmsg': '验证码有误'})
         try:
             user = User.objects.create_user(username=mobile,
                                             password=password)
         except Exception as e:
-            return JsonResponse({'errno':400, 'errmsg':'保存数据库错误'})
+            return JsonResponse({'errno': 400, 'errmsg':'保存数据库错误'})
         login(request, user)
         response = JsonResponse({'errno': 0, 'errmsg': 'ok'})
         response.set_cookie('username', user.mobile, max_age=14*24*3600)
@@ -59,6 +52,7 @@ class LoginView(View):
                 "errno": "0",
                 "errmsg": "已登录",
                 "data": {
+                    "user_id": user.id,
                     "name": user.username
                 }
             })

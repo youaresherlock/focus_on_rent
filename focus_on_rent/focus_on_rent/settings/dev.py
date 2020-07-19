@@ -39,6 +39,8 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'corsheaders',
     'apps.users',
+    'apps.house',
+    'apps.order',
     'apps.verifications',
 ]
 
@@ -102,7 +104,7 @@ DATABASES = {
         'HOST': '127.0.0.1',  # 数据库主机
         'PORT': 3306,  # 数据库端口
         'USER': 'root',  # 数据库用户名
-        'PASSWORD': '543221',  # 数据库用户密码
+        'PASSWORD': 'mysql',  # 数据库用户密码
         'NAME': 'ihome'  # 数据库名字
     }
 }
@@ -115,7 +117,7 @@ CACHES = {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
         }
     },
-   "session": { # session 
+    "session": {  # session
         "BACKEND": "django_redis.cache.RedisCache",
         "LOCATION": "redis://localhost:6379/1",
         "OPTIONS": {
