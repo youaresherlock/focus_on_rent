@@ -25,7 +25,7 @@ SECRET_KEY = 'fq4@fm0z(v2l971gc$2lsi^=95)k4w2blwki)%&&)@=jk^%9v+'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 
 
 # Application definition
@@ -37,6 +37,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'apps.users',  # 用户模块
 ]
 
 MIDDLEWARE = [
@@ -75,8 +76,12 @@ WSGI_APPLICATION = 'focus_on_rent.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
+        'ENGINE': 'django.db.backends.mysql',
+        'HOST': '127.0.0.1',  # 数据库主机
+        'PORT': 3306,  # 数据库端口
+        'USER': 'root',  # 数据库用户名
+        'PASSWORD': 'x1430371727',  # 数据库用户密码
+        'NAME': 'ihome'  # 数据库名字
     }
 }
 
@@ -118,3 +123,8 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/2.2/howto/static-files/
 
 STATIC_URL = '/static/'
+
+
+# 指定Django程序默认的用户模型类为自定义的模型类
+# AUTH_USER_MODEL = 'auth.User'  # Django默认的
+AUTH_USER_MODEL = 'users.User'
