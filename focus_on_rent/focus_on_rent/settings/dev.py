@@ -37,20 +37,23 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'apps.users',  # 用户模块
+    'apps.users',
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
+    # 'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
+
 ROOT_URLCONF = 'focus_on_rent.urls'
+
+
 
 TEMPLATES = [
     {
@@ -84,7 +87,6 @@ DATABASES = {
         'NAME': 'ihome'  # 数据库名字
     }
 }
-
 
 # Password validation
 # https://docs.djangoproject.com/en/2.2/ref/settings/#auth-password-validators
@@ -124,7 +126,5 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 
-
-# 指定Django程序默认的用户模型类为自定义的模型类
-# AUTH_USER_MODEL = 'auth.User'  # Django默认的
 AUTH_USER_MODEL = 'users.User'
+
