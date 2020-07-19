@@ -31,5 +31,10 @@ class LoginView(View):
 
         login(request, user)
         
-        return JsonResponse({'code': 0, 'errmsg': 'ok'})
+        response = JsonResponse({'code': 0, 'errmsg': 'ok'})
+        # 状态保持的时间周期为两周
+        request.session.set_expiry(None)
+        response.set_cookie('username', user.mobile, max_age=14 * 24 * 3600)
+
+        return response
 
