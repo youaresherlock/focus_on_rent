@@ -12,6 +12,23 @@ class LoginView(View):
     """用户登录
     /api/v1.0/session/
     """
+    def get(self, request):
+        """判断用户是否登录"""
+        if request.user.is_authenticated:
+            user = request.user
+            return JsonResponse({
+                "errno": "0",
+                "errmsg": "已登录",
+                "data": {
+                    "name": user.real_name
+                }
+            })
+        else:
+            return JsonResponse({
+                "errno": "4101",
+                "errmsg": "未登录"
+            })
+
     def post(self, request):
         """登录"""
         json_dict = json.loads(request.body.decode())
@@ -19,19 +36,19 @@ class LoginView(View):
         password = json_dict.get('password')
 
         if not all([mobile, password]):
-            return JsonResponse({'code': 400, 'errmsg': '缺少必传参数'})
+            return JsonResponse({'errno': 400, 'errmsg': '缺少必传参数'})
         if not re.match(r'^1[3-9]\d{9}$', mobile):
-            return JsonResponse({'code': 400, 'errmsg': 'mobile格式错误'})
+            return JsonResponse({'errno': 400, 'errmsg': 'mobile格式错误'})
         if not re.match(r'^[0-9A-Za-z]{8,20}$', password):
-            return JsonResponse({'code': 400, 'errmsg': 'password格式错误'})
+            return JsonResponse({'errno': 400, 'errmsg': 'password格式错误'})
 
         user = authenticate(request=request, username=mobile, password=password)
         if user is None:
-            return JsonResponse({'code': 400, 'errmsg': '手机号或密码错误'})
+            return JsonResponse({'errno': 400, 'errmsg': '手机号或密码错误'})
 
         login(request, user)
         
-        response = JsonResponse({'code': 0, 'errmsg': 'ok'})
+        response = JsonResponse({'errno': 0, 'errmsg': '登录成功'})
         # 状态保持的时间周期为两周
         request.session.set_expiry(None)
         response.set_cookie('username', user.mobile, max_age=14 * 24 * 3600)
@@ -43,7 +60,7 @@ class LoginView(View):
         # 清理登录状态
         logout(request)
         # 清理cookie
-        response = JsonResponse({'code': 0, 'errmsg': '已登出'})
+        response = JsonResponse({'errno': 0, 'errmsg': '已登出'})
         response.delete_cookie('username')
         return response
 
