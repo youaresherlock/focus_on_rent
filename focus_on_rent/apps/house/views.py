@@ -14,6 +14,31 @@ from focus_on_rent.utils.views import LoginRequiredJSONMixin
 logger = logging.getLogger('django')
 
 
+class HousesView(LoginRequiredJSONMixin, View):
+    """
+    /api/v1.0/user/houses
+    """
+    def get(self, request):
+        """我的房屋列表"""
+        houses_model_list = request.user.houses.all()
+        houses_list = []
+        for house in houses_model_list:
+            houses_list.append({
+                'address': house.address,
+                'area_name': house.area.name,
+                'ctime': house.create_time,
+                'house_id': house.id,
+                'img_url': house.index_image_url,
+                'order_count': house.order_count,
+                'price': house.price,
+                'room_count': house.room_count,
+                'title': house.title,
+                'user_avator': request.user.avatar.url,
+            })
+
+        return JsonResponse({'data': {'houses': houses_list}, 'errmsg': 'ok', 'errno': 0})
+
+
 class UploadHousesImages(LoginRequiredJSONMixin, View):
     """上传房源图片
     /api/v1.0/houses/<int:house_id>/images
