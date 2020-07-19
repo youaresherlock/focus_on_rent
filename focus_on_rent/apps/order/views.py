@@ -23,6 +23,7 @@ class ReceiveAndRefuseView(LoginRequiredJSONMixin, View):
                 Order.objects.filter(id=order_id).update(status=Order.ORDER_STATUS_ENUM["WAIT_PAYMENT"])
             except Exception as e:
                 return JsonResponse({'errno': 400, 'errmsg': '数据保存失败'})
+            return JsonResponse({'errno': 0, 'errmsg': '操作成功'})
         elif action == 'reject':
             if not reason:
                 return JsonResponse({'errno': 400, 'errmsg': '缺少reason参数'})
@@ -33,6 +34,6 @@ class ReceiveAndRefuseView(LoginRequiredJSONMixin, View):
                 )
             except Exception as e:
                 return JsonResponse({'errno': 400, 'errmsg': '数据保存失败'})
-            return JsonResponse({'errno':0,'errmsg':'操作成功'})
+            return JsonResponse({'errno': 0, 'errmsg': '操作成功'})
         else:
             return JsonResponse({'errno': 400, 'errmsg': 'action数据错误'})

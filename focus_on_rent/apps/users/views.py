@@ -31,7 +31,7 @@ class UpPersonImageView(LoginRequiredJSONMixin,View):
                 )
             except Exception as e:
                 return JsonResponse({'errno': 400, 'errmsg': '图像保存到数据库错误'})
-            avatar_url = settings.QINIU_ADDRESS + '/' + imageurl
+            avatar_url = settings.QINIU_ADDRESS + imageurl
             return JsonResponse({'errno': 0, "errmsg": "头像上传成功", 'data': {avatar_url}})
 
 
