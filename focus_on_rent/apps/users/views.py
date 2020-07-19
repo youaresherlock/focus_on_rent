@@ -10,7 +10,7 @@ from django.contrib.auth import login, logout, authenticate
 
 class LoginView(View):
     """用户登录
-    POST /api/v1.0/session/
+    /api/v1.0/session/
     """
     def post(self, request):
         """登录"""
@@ -36,5 +36,14 @@ class LoginView(View):
         request.session.set_expiry(None)
         response.set_cookie('username', user.mobile, max_age=14 * 24 * 3600)
 
+        return response
+
+    def delete(self, request):
+        """退出登录"""
+        # 清理登录状态
+        logout(request)
+        # 清理cookie
+        response = JsonResponse({'code': 0, 'errmsg': '已登出'})
+        response.delete_cookie('username')
         return response
 
