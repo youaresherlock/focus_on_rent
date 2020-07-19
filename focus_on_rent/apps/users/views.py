@@ -3,6 +3,7 @@ import json
 from django.views import View
 from apps.users.models import User
 from django.shortcuts import render
+
 from apps.users.models import User
 from django.http import JsonResponse
 from django_redis import get_redis_connection
@@ -30,7 +31,6 @@ class RegisterView(View):
         sms_code_server = redis_conn.get('sms_%s' % mobile)
         if not sms_code_server:
             return JsonResponse({'errno': 400, 'errmsg': '短信验证码过期'})
-
         if sms_code_server.decode() != sms_code_client:
             return JsonResponse({'errno': 400, 'errmsg': '验证码有误'})
         try:

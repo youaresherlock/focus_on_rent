@@ -39,7 +39,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'corsheaders',
     'apps.users',
-    'apps.house',
+    'apps.houses',
     'apps.order',
     'apps.verifications',
 
@@ -58,7 +58,6 @@ MIDDLEWARE = [
 
 # 添加跨域白名单
 CORS_ORIGIN_WHITELIST = [
-    "http://www.meiduo.site:8080",
     "http://127.0.0.1:8080",
     "http://localhost:8080",
 ]

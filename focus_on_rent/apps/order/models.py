@@ -1,3 +1,6 @@
+from django.db import models
+
+# Create your models here.
 from django.conf import settings
 from django.db import models
 
@@ -37,7 +40,7 @@ class Order(BaseModel):
         )
 
     user = models.ForeignKey("users.User", related_name="orders", on_delete=models.CASCADE, verbose_name="下订单的用户编号")
-    house = models.ForeignKey("homes.House", on_delete=models.CASCADE, verbose_name="预订的房间编号")
+    house = models.ForeignKey("houses.House", on_delete=models.CASCADE, verbose_name="预订的房间编号")
     begin_date = models.DateField(null=False, verbose_name="预订的起始时间")
     end_date = models.DateField(null=False, verbose_name="结束时间")
     days = models.IntegerField(null=False, verbose_name="预订的总天数")
