@@ -20,4 +20,6 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/v1.0/', include('apps.users.urls')),
     path('api/v1.0/', include('apps.verifications.urls')),
+    path('api/v1.0/', include('apps.house.urls')),
+    path('api/v1.0/', include('apps.order.urls')),
 ]
