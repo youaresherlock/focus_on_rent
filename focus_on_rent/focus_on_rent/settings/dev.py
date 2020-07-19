@@ -39,7 +39,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'corsheaders',
     'apps.users',
-    'apps.house',
+    'apps.houses',
     'apps.order',
     'apps.verifications',
 ]
@@ -57,7 +57,6 @@ MIDDLEWARE = [
 
 # 添加跨域白名单
 CORS_ORIGIN_WHITELIST = [
-    "http://www.meiduo.site:8080",
     "http://127.0.0.1:8080",
     "http://localhost:8080",
 ]
@@ -214,4 +213,10 @@ LOGGING = {
 }
 
 AUTH_USER_MODEL = 'users.User'
+
+# 链接七牛云
+QINIU_ACCESS_KEY = 'W7C7l8WrP2inZpgs98xlK8ZWjNc2Pn4f4GAtSYBC'
+QINIU_SECRET_KEY = '7S7QE50VeKWpwyEaNI-k6Jl8rXQz6aUmFpLKjqNa'
+QINIU_BUCKET_NAME = 'itcastihome'
+QINIU_ADDRESS = 'qdpjw3zve.bkt.clouddn.com'
 

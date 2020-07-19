@@ -1,11 +1,38 @@
 import re
 import json
 from django.views import View
+from django.conf import settings
 from apps.users.models import User
 from django.shortcuts import render
 from django.http import JsonResponse
 from django_redis import get_redis_connection
+from focus_on_rent.utils.qiniu import storage
 from django.contrib.auth import login, logout, authenticate
+from focus_on_rent.utils.views import LoginRequiredJSONMixin
+
+
+
+
+class UpPersonImageView(LoginRequiredJSONMixin,View):
+    '''上传个人图像'''
+
+    def post(self, request):
+
+        myFile = request.FILES.get("avatar")
+
+        imageurl = storage(myFile)
+
+        if not imageurl:
+            return JsonResponse({'errno': 400, 'errmsg': '未上传图像'})
+        else:
+            try:
+                request.user.create(
+                    avatar=imageurl
+                )
+            except Exception as e:
+                return JsonResponse({'errno': 400, 'errmsg': '图像保存到数据库错误'})
+            avatar_url = settings.QINIU_ADDRESS + '/' + imageurl
+            return JsonResponse({'errno': 0, "errmsg": "头像上传成功", 'data': {avatar_url}})
 
 
 class RegisterView(View):
@@ -15,7 +42,7 @@ class RegisterView(View):
         password = json_dict.get('password')
         sms_code_client = json_dict.get('phonecode')
 
-        if not all([mobile,password]):
+        if not all([mobile, password]):
             return JsonResponse({'errno': 400, 'errmsg': '缺少必传参数'})
 
         if not re.match(r'^1[3-9]\d{9}$', mobile):
@@ -33,10 +60,10 @@ class RegisterView(View):
             user = User.objects.create_user(username=mobile,
                                             password=password)
         except Exception as e:
-            return JsonResponse({'errno': 400, 'errmsg':'保存数据库错误'})
+            return JsonResponse({'errno': 400, 'errmsg': '保存数据库错误'})
         login(request, user)
         response = JsonResponse({'errno': 0, 'errmsg': 'ok'})
-        response.set_cookie('username', user.mobile, max_age=14*24*3600)
+        response.set_cookie('username', user.mobile, max_age=14 * 24 * 3600)
         return response
 
 
@@ -44,6 +71,7 @@ class LoginView(View):
     """用户登录
     /api/v1.0/session/
     """
+
     def get(self, request):
         """判断用户是否登录"""
         if request.user.is_authenticated:
@@ -80,7 +108,7 @@ class LoginView(View):
             return JsonResponse({'errno': 400, 'errmsg': '手机号或密码错误'})
 
         login(request, user)
-        
+
         response = JsonResponse({'errno': 0, 'errmsg': '登录成功'})
         # 状态保持的时间周期为两周
         request.session.set_expiry(None)
@@ -96,7 +124,3 @@ class LoginView(View):
         response = JsonResponse({'errno': 0, 'errmsg': '已登出'})
         response.delete_cookie('username')
         return response
-
-
-
-

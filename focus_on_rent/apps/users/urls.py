@@ -4,5 +4,6 @@ from django.urls import path
 urlpatterns = [
    path('session', views.LoginView.as_view()),
    path('users', views.RegisterView.as_view()),
+   path('user/avatar',views.UpPersonImageView.as_view()),
 ]
 
