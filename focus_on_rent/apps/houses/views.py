@@ -174,7 +174,7 @@ class Areas(View):
                         "aname": area.name,
                     })
 
-                return JsonResponse({ "errno": '0',"errmsg": "获取成功","data":data})
+                return JsonResponse({ "errno": 0,"errmsg": "获取成功","data":data})
             else:
                 return JsonResponse({"errno": "400", "errmsg": "未登录"})
         except Exception as e:
