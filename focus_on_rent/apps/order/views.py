@@ -2,6 +2,7 @@ import json
 import datetime
 
 from django.views import View
+from django.db import transaction
 from apps.order.models import Order
 from apps.houses.models import House
 from django.http import JsonResponse
@@ -104,74 +105,95 @@ class CommentOrder(LoginRequiredJSONMixin, View):
 class Addlist(View, LoginRequiredJSONMixin):
 
     def post(self,request):
+
         data_dict = json.loads(request.body.decode())
         house_id = data_dict.get('house_id')
         start_date = data_dict.get('start_date')
         end_date = data_dict.get('end_date')
         user = request.user
 
+        #判断完整
         if not all([house_id,start_date,end_date]):
-            return JsonResponse({'errno': '400', 'errmsg': '缺少必传参数'})
+            return JsonResponse({'errno': 400, 'errmsg': '缺少必传参数'})
+        #是否存在
         try:
             house = House.objects.get(id=house_id)
         except Exception as e:
-            return JsonResponse({"errno": '400', "errmsg": "房屋不存在"})
-
+            return JsonResponse({"errno": 400, "errmsg": "房屋不存在"})
+        #是否房主
         if user == house.user:
-            return JsonResponse({"errno": '400', "errmsg": "是房主无法预定"})
+            return JsonResponse({"errno": 400, "errmsg": "是房主无法预定"})
 
+        #跳转页面
 
-
+        #判断是否传入错误数据
         try:
             d1 = datetime.datetime.strptime(start_date, '%Y-%m-%d')
             d2 = datetime.datetime.strptime(end_date, '%Y-%m-%d')
             delta = d2 - d1
             days = delta.days
             if days < 0:
-                Exception('日期错误')
-
+                return JsonResponse({'errno': 400, 'errmsg': '日期有误'})
         except Exception as e:
-            return JsonResponse({'errno': '400', 'errmsg': '参数有误'})
+            return JsonResponse({'errno': 400, 'errmsg': '参数有误'})
 
-        if days < house.min_days:
-            return JsonResponse({'errno': '400', 'errmsg': '住的时间太短'})
+        #是否有人预定
+        result = Order.objects.filter(house=house, begin_date=d1).count()
+        if result > 0:
 
-        if days > house.max_days:
-            return JsonResponse({'errno': '400', 'errmsg': '住的时间太长'})
+            return JsonResponse({"errno": 400, "errmsg": "有人预定"})
 
-        try:
-            contents = Order.objects.filter(house=house_id, status=Order.ORDER_STATUS['PAID'])
+        with transaction.atomic():
 
-            for content in contents:
-                if d1 == content.begin_date:
-                    return JsonResponse({'errno': '400', 'errmsg': '日期重复'})
+             save_id = transaction.savepoint()
 
-                if (d2 - content.begin_date).days > 0:
-                    return JsonResponse({'errno': '400', 'errmsg': '日期冲突'})
-        except Exception as e:
-                JsonResponse({'errno': '400', 'errmsg': '参数有误'})
+             try:
 
-        else:
                 price = house.price
                 amount = price * days
 
-                try:
-                     order = Order.objects.create(user = user,
-                                                house_id = house,
-                                                begin_date = d1,
-                                                end_date = d2,
-                                                days = days,
-                                                amount = amount,
-                                                status = Order.ORDER_STATUS['PAID'],
-                                                price = price,
-                                                )
+                if days < house.min_days:
+                    return JsonResponse({'errno': 400, 'errmsg': '住的时间太短'})
 
-                except Exception as e:
-                    return JsonResponse({'errno': 400, 'errmsg': '保存到数据库错误'})
+                if days > house.max_days:
+                    return JsonResponse({'errno': 400, 'errmsg': '住的时间太长'})
 
-        return JsonResponse({'errno': '0', 'errmsg': '添加订单成功',  "data": {
-                "order_id": order.pk}
-                                     })
+
+                contents = Order.objects.filter(house=house_id, status=Order.ORDER_STATUS['PAID'])
+
+                for content in contents:
+                    if  (d1 - content.end_date).days > 0:
+                        return JsonResponse({'errno': 400, 'errmsg': '日期重复'})
+
+                    if (d2 - content.begin_date).days > 0:
+                        return JsonResponse({'errno': 400, 'errmsg': '日期冲突'})
+
+
+
+                order = Order.objects.create(user=user,
+                                             house_id=house,
+                                             begin_date=d1,
+                                             end_date=d2,
+                                             days=days,
+                                             amount=amount,
+                                             status=Order.ORDER_STATUS['PAID'],
+                                             price=price,
+                                             )
+
+
+                if Order.objects.filter(house=house, begin_date=d1).count() > request:
+                    transaction.savepoint_rollback(save_id)
+                    return JsonResponse({'code': 400, 'errmsg': '房屋已经被预定'})
+
+
+
+             except Exception as e:
+                 transaction.savepoint_rollback(save_id)
+                 return JsonResponse({'code': 400, 'errmsg': '下单失败'})
+            #提交事务
+
+             transaction.savepoint_commit(save_id)
+             return JsonResponse({'errno': 0, 'errmsg': '添加订单成功',  "data": {"order_id": order.pk}})
 
 
 
