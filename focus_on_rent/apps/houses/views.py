@@ -135,7 +135,6 @@ class DetailView(View):
 
 
 class HousesView(View):
-
     def get(self, request):
         """房屋搜索"""
         area = request.GET.get('aid')
@@ -155,21 +154,49 @@ class HousesView(View):
 
         # 都是非必传参数,所以不检验数据完整性
         # 开始时间格式的转换
-        start_date = datetime.datetime.strptime(start_day, '%Y-%m-%d')
+        if start_day:
+            start_date = datetime.datetime.strptime(start_day, '%Y-%m-%d')
         # 结束时间格式的转换
-        end_date = datetime.datetime.strptime(end_day, '%Y-%m-%d')
+        if end_day:
+            end_date = datetime.datetime.strptime(end_day, '%Y-%m-%d')
 
         if start_day:
             orderes = Order.objects.filter(end_date__gt=start_date)
-            house_ids = [orders.house_id for orders in orderes]
-
+            house_ids1 = [orders.house_id for orders in orderes]
+            if len(house_ids1) == 0:
+                house_ids = house_ids1
+            else:
+                for house in house_ids1:
+                    min_day = house.min_days
+                    delta = datetime.timedelta(days=min_day)
+                    start_date = start_date + delta
+                    orderes2 = Order.objects.filter(begin_date__lt=start_date)
+                    house_ids2 = [orders.house_id for orders in orderes2]
+                    house_ids = house_ids1 + house_ids2
         elif end_day:
             orderes = Order.objects.filter(begin_date__lt=end_date)
-            house_ids = [orders.house_id for orders in orderes]
+            house_ids1 = [orders.house_id for orders in orderes]
+            if len(house_ids1) == 0:
+                house_ids = house_ids1
+            else:
+                for house in house_ids1:
+                    min_day = house.min_days
+                    delta = datetime.timedelta(days=min_day)
+                    end_date = start_date - delta
+                    orderes2 = Order.objects.filter(end_date__lt=end_date)
+                    house_ids2 = [orders.house_id for orders in orderes2]
+                    house_ids = house_ids1 + house_ids2
 
         elif start_day and end_day:
+            days = end_day - start_day
+            house1 = House.objects.filter(min_days__gt=days)
+            house_ids1 = [house.id for house in house1]
+            house2 = House.objects.filter(max_days_lt=days)
+            house_ids2 = [house.id for house in house2]
             orderes = Order.objects.filter(begin_date__lt=end_day, end_date__gt=start_day)
-            house_ids = [orders.house_id for orders in orderes]
+            house_ids3 = [orders.house_id for orders in orderes]
+            house_ids = house_ids1 + house_ids2 + house_ids3
+
         else:
             house_ids = []
 
@@ -220,7 +247,7 @@ class HousesView(View):
         return JsonResponse({
             "errmsg": "请求成功",
             "errno": "0",
-            "data": data
+            "data":data
         })
 
     def post(self, request):
