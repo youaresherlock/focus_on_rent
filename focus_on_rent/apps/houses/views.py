@@ -4,6 +4,7 @@ from django.conf import settings
 from django.shortcuts import render
 from django.http import JsonResponse
 from apps.houses.models import House
+from apps.houses.models import Area
 
 
 class DetailView(View):
@@ -78,3 +79,23 @@ class HousesView(View):
         # 判断时间
         if not start_day or not end_day:
             return ({'errno': 400, 'errmsg': '请输入准确的时间'})
+
+
+class Areas(View):
+    def get(self,request):
+        try:
+            if request.user.is_authenticated:
+
+                areas=Area.objects.all()
+                data=[]
+                for area in areas:
+                    data.append({
+                        "aid": area.id,
+                        "aname": area.name,
+                    })
+
+                return JsonResponse({ "errno": '0',"errmsg": "获取成功","data":data})
+            else:
+                return JsonResponse({"errno": "400", "errmsg": "未登录"})
+        except Exception as e:
+            return JsonResponse({"errno": "400", "errmsg": "获取失败"})

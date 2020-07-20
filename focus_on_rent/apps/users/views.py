@@ -129,7 +129,7 @@ class LoginView(View):
         return response
 
 
-class Realname(View):
+class Realname(View, LoginRequiredJSONMixin):
     def post(self, request):
         """登录"""
         json_dict = json.loads(request.body.decode())
