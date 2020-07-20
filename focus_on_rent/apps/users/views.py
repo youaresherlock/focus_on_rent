@@ -163,10 +163,11 @@ class Realname(View, LoginRequiredJSONMixin):
         if not re.match('^[1-9]\d{5}(18|19|([23]\d))\d{2}((0[1-9])|(10|11|12))(([0-2][1-9])|10|20|30|31)\d{3}[0-9Xx]$'):
             return JsonResponse({'code': 400, 'errmsg': '身份证号码有误'})
         content = IDauth(real_name, id_card)
+        user = request.user
         if content['status'] == '01':
             try:
-                user = User.objects.create_user(real_name=real_name,
-                                                id_card=id_card)
+                user.real_name = real_name
+                user.id_card = id_card
                 user.save()
             except Exception as e:
                 return JsonResponse({'errno': 400, 'errmsg': '保存到数据库错误'})
