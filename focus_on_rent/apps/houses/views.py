@@ -1,9 +1,11 @@
 # Create your views here.
+import json
 from django.views import View
 from django.conf import settings
 from django.shortcuts import render
 from django.http import JsonResponse
-from apps.houses.models import House
+from apps.houses.models import House, Facility, Area
+from focus_on_rent.utils.views import LoginRequiredJSONMixin
 
 
 class DetailView(View):
@@ -62,7 +64,7 @@ class DetailView(View):
         return JsonResponse({'errno': 0, 'errmsg': 'OK', 'user_id': user_id, 'dict': dict})
 
 
-class HousesView(View):
+class HousesView(LoginRequiredJSONMixin, View):
     def get(self, request):
         """房屋搜索"""
         area = request.GET.get('aid')
@@ -78,3 +80,65 @@ class HousesView(View):
         # 判断时间
         if not start_day or not end_day:
             return ({'errno': 400, 'errmsg': '请输入准确的时间'})
+
+
+    def post(self, request):
+        """发布房源"""
+
+        # 接收参数
+        json_dict = json.loads(request.body.decode())
+        title = json_dict.get('title')
+        price = json_dict.get('price')
+        acreage = json_dict.get('acreage')
+        area_id = json_dict.get('area_id')
+        address = json_dict.get('address')
+        room_count = json_dict.get('room_count')
+        unit = json_dict.get('unit')
+        capacity = json_dict.get('capacity')
+        beds = json_dict.get('beds')
+        deposit = json_dict.get('deposit')
+        min_days = json_dict.get('min_days')
+        max_days = json_dict.get('max_days')
+
+        if not all([title, price, area_id, address, room_count, unit, capacity,
+                    beds, deposit, min_days, max_days, acreage,]):
+            return JsonResponse({'errno': 400, 'errmsg': '缺少必传参数'})
+
+        try:
+            area = Area.objects.get(id=area_id)
+        except BaseException as e:
+            return JsonResponse({'errno': 400, 'errmsg': '地址不存在'})
+
+        # 设置数据到模型
+        house = House()
+        house.user = request.user
+        house.title= title,
+        house.price = price,
+        house.area = area,
+        house.address = address,
+        house.acreage = acreage,
+        house.room_count = room_count,
+        house.unit = unit,
+        house.capacity = capacity,
+        house.beds = beds,
+        house.deposit = deposit,
+        house.min_days = min_days,
+        house.max_days = max_days,
+
+        # 同步至数据库
+        try:
+            house.save()
+        except BaseException as e:
+            return JsonResponse({'errno': 400, 'errmsg': '保存房源信息失败'})
+
+        # 设置设施信息
+        try:
+            facility_ids = json_dict.get('facility')
+            if facility_ids:
+                facilities = Facility.objects.filter(id__in=facility_ids)
+                for facility in facilities:
+                    house.facility.add(facility)
+        except BaseException as e:
+            return JsonResponse({'errno': 400, 'errmsg': '保存设施信息失败'})
+
+        return JsonResponse({'errno': '0', 'errmsg': '发布成功', "data": {"house_id": house.pk}})

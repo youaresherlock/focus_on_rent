@@ -161,7 +161,7 @@ class UserInfoView(LoginRequiredJSONMixin, View):
         avatar = request.user.avatar
         create_time = request.user.create_time
         mobile = request.user.mobile
-        name = request.user.real_name
+        name = request.user.username
         user_id = request.user.id
 
         # 用户信息字典
@@ -180,11 +180,11 @@ class UserInfoView(LoginRequiredJSONMixin, View):
         # 响应结果
         return JsonResponse(data_dict)
 
-#
+
 class ChangeUserNameView(View):
     """修改用户名"""
 
-    def put(self, request, name):
+    def put(self, request):
 
         # 接收参数
         json_dict = json.loads(request.body.decode())
@@ -195,14 +195,24 @@ class ChangeUserNameView(View):
             if not re.match(r'^[a-zA-Z_0-9]{6,20}$', new_name):
                 return JsonResponse({'errno': 400, 'errmsg': '用户名格式错误'})
 
-            user = request.user
             # 修改用户名
             try:
-                user.username = new_name
-                user.save()
+                request.user.username = new_name
+                request.user.save()
             except BaseException as e:
                 return JsonResponse({'errno': 400, 'errmsg': '修改用户名失败'})
 
         # 响应结果
         return JsonResponse({'errno': '0', 'errmsg': '修改成功'})
+
+
+class UploadHousesImages(LoginRequiredJSONMixin, View):
+    """上传房源图片
+    /api/v1.0/houses/[int:house_id]/images
+    """
+    def post(self, request):
+        """上传房源图片"""
+        json_dict = json.loads(request.body.decode())
+        house_image = json_dict.get('house_image')
+
 
