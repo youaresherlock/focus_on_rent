@@ -1,16 +1,53 @@
 # Create your views here.
 import json
+import logging
 import datetime
 from django.views import View
 from django.conf import settings
 from django.shortcuts import render
+from apps.order.models import Order
 from django.http import JsonResponse
+from apps.houses.models import HouseImage
+from django.core.paginator import Paginator
 from django.db import DatabaseError, transaction
 from apps.houses.models import House, Facility, Area
+from celery_tasks.pictures.tasks import upload_pictures
 from focus_on_rent.utils.views import LoginRequiredJSONMixin
-from apps.order.models import Order
-from django.core.paginator import Paginator
 from focus_on_rent.utils.recommand import similarity, recommand_list
+
+
+logger = logging.getLogger('django')
+
+
+class UploadHousePictureView(View):
+    """上传房源图片
+    /api/v1.0/houses/[int:house_id]/images
+    """
+    def post(self, request, house_id):
+        house_image = request.FILES.get('house_image')
+
+        if not house_image:
+            return JsonResponse({'errno': 400, 'errmsg': '房屋图片为空'})
+        try:
+            house = House.objects.get(id=house_id)
+        except House.DoesNotExist:
+            return JsonResponse({'errno': 400, 'errmsg': '房屋不存在'})
+        if house.user_id != request.user.id:
+            return JsonResponse({'errno': 400, 'errmsg': '只有房主才能修改房屋图片'})
+
+        image_content = house_image.read()
+        image_url = upload_pictures.delay(image_content, None)
+
+        try:
+            HouseImage.objects.create(house=house, url=image_url)
+            if not house.index_image_url:
+                house.index_image_url = image_url
+                house.save()
+        except Exception as e:
+            logger.error(e)
+            return JsonResponse({'errno': 400, 'errmsg': '保存图片错误'})
+
+        return JsonResponse({'data': {'url': image_url}, 'errno': 0, 'errmsg': '图片上传成功'})
 
 
 class HousesCommandView(View):
@@ -97,7 +134,8 @@ class DetailView(View):
         return JsonResponse({'errno': 0, 'errmsg': 'OK', 'user_id': user_id, 'dict': dict})
 
 
-class HousesView(LoginRequiredJSONMixin, View):
+class HousesView(View):
+
     def get(self, request):
         """房屋搜索"""
         area = request.GET.get('aid')
@@ -108,50 +146,50 @@ class HousesView(LoginRequiredJSONMixin, View):
         # 处理页数
         page = int(page)
 
-        # 判断城区
         if not area:
-            return ({'errno': 400, 'errmsg': '请选择城区城区'})
-        # 判断时间
-        if not start_day or not end_day:
-            return ({'errno': 400, 'errmsg': '请输入准确的时间'})
-        #都是非必传参数,所以不检验数据完整性
-        # 开始时间格式的转换
-        if start_day:
-            start_date = datetime.datetime.strptime(start_day, '%Y-%m-%d')
-        # 结束时间格式的转换
-        if end_day:
-            end_date = datetime.datetime.strptime(end_day, '%Y-%m-%d')
-        # 创建筛选条件
-        filters = {}
-        if area:
-            filters['area_id'] = area
-        # 查询时间看是否符合
-        if start_day and end_day:
-            orderes = Order.objects.filter(begin_date__gt=end_day,end_date__lte=start_day)
-        elif start_day:
-            orderes = Order.objects.filter(end_date__lte=start_day)
-        elif end_day:
-            orderes = Order.objects.filter(begin_date__gt=end_day)
+            houses1 = House.objects.all()
         else:
-            orderes = []
-        # 找出时间符合的订单id
-        orderes_id = [order.id for order in orderes]
-        filters['id__in']=orderes_id
-        # 根据筛选条件选择符合的房屋
-        houses = House.objects.filter(**filters)
-        # 以传递参数来进行排序
+            houses1 = House.objects.filter(area_id=area)
+
+        houses1_list = [houses.id for houses in houses1]
+
+        # 都是非必传参数,所以不检验数据完整性
+        # 开始时间格式的转换
+        start_date = datetime.datetime.strptime(start_day, '%Y-%m-%d')
+        # 结束时间格式的转换
+        end_date = datetime.datetime.strptime(end_day, '%Y-%m-%d')
+
+        if start_day:
+            orderes = Order.objects.filter(end_date__gt=start_date)
+            house_ids = [orders.house_id for orders in orderes]
+
+        elif end_day:
+            orderes = Order.objects.filter(begin_date__lt=end_date)
+            house_ids = [orders.house_id for orders in orderes]
+
+        elif start_day and end_day:
+            orderes = Order.objects.filter(begin_date__lt=end_day, end_date__gt=start_day)
+            house_ids = [orders.house_id for orders in orderes]
+        else:
+            house_ids = []
+
+        for house_id in house_ids:
+            if house_id in houses1_list:
+                houses1_list.remove(house_id)
+
+        houses2 = House.objects.filter(id__in=houses1_list)
+
         if sort_key == 'booking':
             # 按照订单量查询
-            house_qs = houses.order_by('-order_count')
+            house_qs = houses2.order_by('-order_count')
         elif sort_key == 'price-inc':
             # 按照价格从低到高
-            house_qs = houses.order_by('price')
+            house_qs = houses2.order_by('price')
         elif sort_key == 'price-des':
             # 按照价格从高到低
-            house_qs = houses.order_by('-price')
+            house_qs = houses2.order_by('-price')
         else:
-            house_qs = houses.order_by('-create_time')
-
+            house_qs = houses2.order_by('-create_time')
         # 分页
         paginator = Paginator(house_qs, 3)
         # 获取每页对象
@@ -161,10 +199,11 @@ class HousesView(LoginRequiredJSONMixin, View):
 
         data = {}
         house_data = []
+
         for house in page_house:
             house_dict = {
                 "address": house.address,
-                "area_name": house.area,
+                "area_name": house.area.name,
                 "ctime": house.create_time,
                 "house_id": house.id,
                 "img_url": house.index_image_url,
@@ -172,17 +211,17 @@ class HousesView(LoginRequiredJSONMixin, View):
                 "price": house.price,
                 "room_count": house.room_count,
                 "title": house.title,
-                "user_avatar": house.user.avatar
+                "user_avatar": settings.QINIU_ADDRESS + str(house.user.avatar)
             }
             house_data.append(house_dict)
-        data['houses'] = house_data
+
+        data['houses']= house_data
         data['total_page'] = page_total
         return JsonResponse({
             "errmsg": "请求成功",
             "errno": "0",
             "data": data
         })
-
 
     def post(self, request):
         """发布房源"""
