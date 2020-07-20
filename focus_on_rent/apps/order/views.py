@@ -1,13 +1,12 @@
 import json
 import datetime
-from apps.order.models import Order
-from focus_on_rent.utils.views import LoginRequiredJSONMixin
+
 from django.views import View
 from django.db import transaction
-from django.http import JsonResponse
-from focus_on_rent.utils.views import LoginRequiredJSONMixin
 from apps.order.models import Order
 from apps.houses.models import House
+from django.http import JsonResponse
+from focus_on_rent.utils.views import LoginRequiredJSONMixin
 
 
 # Create your views here.
@@ -58,8 +57,9 @@ class GetOrderList(LoginRequiredJSONMixin, View):
             orders = user.orders.order_by('-create_time')
         if role == 'landlord':
             # 如果是房东,则查询自己的房屋订单
-            houses = user.houses
-            orders = houses.order_set.order_by(Order.ORDER_STATUS_ENUM.keys())
+            houses = user.houses.all()
+            houses_id = [house.id for house in houses]
+            orders = Order.objects.filter(house_id__in=houses_id).order_by('status')
         order_list = []
         for order in orders:
             order_dict = {
