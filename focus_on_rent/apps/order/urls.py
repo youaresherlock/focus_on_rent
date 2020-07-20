@@ -8,5 +8,6 @@ urlpatterns = [
     # 评价订单
     path('orders/<int:order_id>/comment',views.CommentOrder.as_view()),
     path('orders/<int:order_id>/status',views.ReceiveAndRefuseView.as_view()),
+    path('orders', views.Addlist.as_view()),
 
 ]
