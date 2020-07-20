@@ -152,6 +152,23 @@ class LoginView(View):
 
 
 class Realname(View, LoginRequiredJSONMixin):
+    def get(self, request):
+        """
+        获取用户real_name和id_card
+        :param request:
+        :return:
+        """
+        try:
+            user = request.user
+            real_name = user.real_name
+            id_card = user.id_card
+        except Exception as e:
+            return JsonResponse({"errno": 4002, "errmsg": "用户不存在"})
+
+        data = {'real_name': real_name, 'id_card': id_card}
+
+        return JsonResponse({'data': data, 'errno': 0, 'errmsg': 'OK'})
+    
     def post(self, request):
         """登录"""
         json_dict = json.loads(request.body.decode())

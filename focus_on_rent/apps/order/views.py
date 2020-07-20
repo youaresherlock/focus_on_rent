@@ -140,27 +140,29 @@ class Addlist(View, LoginRequiredJSONMixin):
             return JsonResponse({'errno': '400', 'errmsg': '住的时间太长'})
 
         try:
-            contents = Order.objects.filter(house=house_id, status='2')
+            contents = Order.objects.filter(house=house_id, status=Order.ORDER_STATUS['PAID'])
 
             for content in contents:
-                if start_date == content.begin_date:
+                if d1 == content.begin_date:
                     return JsonResponse({'errno': '400', 'errmsg': '日期重复'})
 
-                if (d2 - content.begin_date) > 0:
+                if (d2 - content.begin_date).days > 0:
                     return JsonResponse({'errno': '400', 'errmsg': '日期冲突'})
         except Exception as e:
+                JsonResponse({'errno': '400', 'errmsg': '参数有误'})
 
+        else:
                 price = house.price
                 amount = price * days
 
                 try:
                      order = Order.objects.create(user = user,
                                                 house_id = house,
-                                                begin_date = start_date,
-                                                end_date = end_date,
+                                                begin_date = d1,
+                                                end_date = d2,
                                                 days = days,
                                                 amount = amount,
-                                                status = '2',
+                                                status = Order.ORDER_STATUS['PAID'],
                                                 price = price,
                                                 )
 
