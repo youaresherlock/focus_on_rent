@@ -90,7 +90,7 @@ class DetailView(View):
         # 查数据
         try:
             house = House.objects.get(id=house_id)
-            orders = house.order_set()
+            orders = house.order_set.all()
             comment_list = []
             for order in orders:
                 comment_list.append({
@@ -98,14 +98,14 @@ class DetailView(View):
                     "ctime": order.begin_date,
                     "user_name": order.user.real_name,
                 })
-            decilities = house.facility
+            decilities = house.facility.all()
             facility_list = []
             for dec in decilities:
                 facility_list.append(dec.id)
 
             img_urls = []
-            for image in house.house:
-                img_urls.append(settings.QINIU_ADDRESS + image.url)
+            for image in house.houseimage_set.all():
+                img_urls.append(image.url)
             house_date = {
                 "acreage": house.acreage,
                 "address": house.address,
