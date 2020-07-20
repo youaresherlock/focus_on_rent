@@ -117,10 +117,8 @@ class Addlist(View, LoginRequiredJSONMixin):
         except Exception as e:
             return JsonResponse({"errno": '400', "errmsg": "房屋不存在"})
 
-        try:
-            user ==  house.user
-        except Exception as e:
-            return JsonResponse({'errno': '400', 'errmsg': '查询不到房主信息'})
+        if user == house.user:
+            return JsonResponse({"errno": '400', "errmsg": "是房主无法预定"})
 
 
 
