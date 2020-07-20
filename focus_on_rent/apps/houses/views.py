@@ -4,6 +4,7 @@ from django.views import View
 from django.conf import settings
 from django.shortcuts import render
 from django.http import JsonResponse
+from apps.houses.models import Area
 from apps.order.models import Order
 from apps.houses.models import House
 from django.core.paginator import Paginator
@@ -14,6 +15,7 @@ class HousesCommandView(View):
     def get(self, request):
         House.objects.filter(user=request.user)
         pass
+
 
 
 class DetailView(View):
@@ -83,7 +85,13 @@ class HousesView(View):
         # 处理页数
         page = int(page)
 
-        #都是非必传参数,所以不检验数据完整性
+        # 判断城区
+        if not area:
+            return ({'errno': 400, 'errmsg': '请选择城区城区'})
+        # 判断时间
+        if not start_day or not end_day:
+            return ({'errno': 400, 'errmsg': '请输入准确的时间'})
+         #都是非必传参数,所以不检验数据完整性
         # 开始时间格式的转换
         if start_day:
             start_date = datetime.datetime.strptime(start_day, '%Y-%m-%d')
@@ -151,4 +159,28 @@ class HousesView(View):
             "errno": "0",
             "data": data
         })
+
+      
+class Areas(View):
+    def get(self,request):
+        try:
+            if request.user.is_authenticated:
+
+                areas=Area.objects.all()
+                data=[]
+                for area in areas:
+                    data.append({
+                        "aid": area.id,
+                        "aname": area.name,
+                    })
+
+                return JsonResponse({ "errno": '0',"errmsg": "获取成功","data":data})
+            else:
+                return JsonResponse({"errno": "400", "errmsg": "未登录"})
+        except Exception as e:
+            return JsonResponse({"errno": "400", "errmsg": "获取失败"})
+
+
+       
+
 
