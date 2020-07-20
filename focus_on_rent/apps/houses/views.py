@@ -9,13 +9,35 @@ from apps.houses.models import House, Facility, Area
 from focus_on_rent.utils.views import LoginRequiredJSONMixin
 from apps.order.models import Order
 from django.core.paginator import Paginator
+from focus_on_rent.utils.recommand import similarity, recommand_list
 
 
 class HousesCommandView(View):
     """首页房屋推荐"""
     def get(self, request):
-        House.objects.filter(user=request.user)
-        pass
+        houses_model_list = House.objects.filter(user=request.user)
+        houses_ids = [str(house.id) for house in houses_model_list]
+
+        status = [Order.ORDER_STATUS['PAID'], Order.ORDER_STATUS['WAIT_COMMENT'], Order.ORDER_STATUS['COMPLETE']]
+        orders_model_list = Order.objects.filter(status__in=status)
+        data_set = {}
+        for order in orders_model_list:
+            user, score, item = str(order.user.id), '1', str(order.house.id)
+            data_set.setdefault(user, {})
+            data_set[user][item] = score
+        item_similarity_matrix = similarity(data_set)
+        recommands = recommand_list(data_set, item_similarity_matrix, str(request.user.id), 10, 5, houses_ids)
+
+        data_list = []
+        for house_id, _ in recommands:
+            house = House.objects.get(id=int(house_id))
+            data_list.append({
+                'house_id': house.id,
+                'img_url': house.index_image_url,
+                'title': house.title
+            })
+
+        return JsonResponse({'data': data_list, 'errmsg': 'ok', 'errno': 0})
 
 
 class DetailView(View):

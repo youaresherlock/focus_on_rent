@@ -30,7 +30,7 @@ class Order(BaseModel):
         6: "REJECTED"  # 已拒单
     }
     ORDER_STATUS_CHOICES = (
-            (0 ,"WAIT_ACCEPT"),  # 待接单,
+            (0, "WAIT_ACCEPT"),  # 待接单,
             (1, "WAIT_PAYMENT"),  # 待支付
             (2, "PAID"),  # 已支付
             (3, "WAIT_COMMENT"),  # 待评价

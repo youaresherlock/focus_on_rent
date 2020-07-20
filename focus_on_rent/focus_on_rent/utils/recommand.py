@@ -70,4 +70,4 @@ if __name__ == '__main__':
     # data = load_data(uid_score_bid)  # 获得数据
     data = {'A': {'a': '1', 'b': '1', 'd': '1'}, 'B': {'b': '1', 'c': '1', 'e': '1'}, 'C': {'c': '1', 'd': '1'}, 'D': {'b': '1', 'c': '1', 'd': '1'}, 'E': {'a': '1', 'd': '1'}}
     W = similarity(data)  # 计算物品相似矩阵
-    recommand_list(data, W, 'A', 3, 10)  # 推荐
+    recommand = recommand_list(data, W, 'A', 3, 10)  # 推荐
