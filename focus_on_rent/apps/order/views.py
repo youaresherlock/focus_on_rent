@@ -58,7 +58,7 @@ class GetOrderList(LoginRequiredJSONMixin, View):
             # 如果是房东,则查询自己的房屋订单
             houses = user.houses.all()
             houses_id = [house.id for house in houses]
-            orders = Order.objects.filter(house_id__in=houses_id).order_by('-status')
+            orders = Order.objects.filter(house_id__in=houses_id).order_by('status')
         order_list = []
         for order in orders:
             order_dict = {
