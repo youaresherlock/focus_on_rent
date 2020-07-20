@@ -9,6 +9,7 @@ from apps.order.models import Order
 from django.http import JsonResponse
 from apps.houses.models import HouseImage
 from django.core.paginator import Paginator
+from django.db import DatabaseError, transaction
 from apps.houses.models import House, Facility, Area
 from celery_tasks.pictures.tasks import upload_pictures
 from focus_on_rent.utils.views import LoginRequiredJSONMixin
@@ -245,42 +246,60 @@ class HousesView(View):
             return JsonResponse({'errno': 400, 'errmsg': '缺少必传参数'})
 
         try:
+            price = int(float(price) * 100)
+            deposit = int(float(deposit) * 100)
+        except BaseException as e:
+            return JsonResponse({'errno': 400, 'errmsg': '金额参数错误'})
+
+        try:
             area = Area.objects.get(id=area_id)
         except BaseException as e:
             return JsonResponse({'errno': 400, 'errmsg': '地址不存在'})
 
-        # 设置数据到模型
-        house = House()
-        house.user = request.user
-        house.title= title,
-        house.price = price,
-        house.area = area,
-        house.address = address,
-        house.acreage = acreage,
-        house.room_count = room_count,
-        house.unit = unit,
-        house.capacity = capacity,
-        house.beds = beds,
-        house.deposit = deposit,
-        house.min_days = min_days,
-        house.max_days = max_days,
+        while True:
+            # 开启事务,保证数据库操作的正确性,一致性
+            with transaction.atomic():
+                save_point = transaction.savepoint()
 
-        # 同步至数据库
-        try:
-            house.save()
-        except BaseException as e:
-            return JsonResponse({'errno': 400, 'errmsg': '保存房源信息失败'})
+                # 设置数据到模型
+                house = House()
+                house.user = request.user
+                house.title= title,
+                house.price = price,
+                house.area = area,
+                house.address = address,
+                house.acreage = acreage,
+                house.room_count = room_count,
+                house.unit = unit,
+                house.capacity = capacity,
+                house.beds = beds,
+                house.deposit = deposit,
+                house.min_days = min_days,
+                house.max_days = max_days,
 
-        # 设置设施信息
-        try:
-            facility_ids = json_dict.get('facility')
-            if facility_ids:
-                facilities = Facility.objects.filter(id__in=facility_ids)
-                for facility in facilities:
-                    house.facility.add(facility)
-        except BaseException as e:
-            return JsonResponse({'errno': 400, 'errmsg': '保存设施信息失败'})
+                # 同步至数据库
+                try:
+                    house.save()
+                except DatabaseError as e:
+                    transaction.savepoint_rollback(save_point)
+                    return JsonResponse({'errno': 400, 'errmsg': '保存房源信息失败'})
 
+                # 设置设施信息
+                try:
+                    facility_ids = json_dict.get('facility')
+                    if facility_ids:
+                        facilities = Facility.objects.filter(id__in=facility_ids)
+                        for facility in facilities:
+                            house.facility.add(facility)
+                except DatabaseError as e:
+                    transaction.savepoint_rollback(save_point)
+                    return JsonResponse({'errno': 400, 'errmsg': '保存设施信息失败'})
+
+                # 数据库操作无误
+                transaction.savepoint_commit(save_point)
+                break
+
+        # 响应结果
         return JsonResponse({'errno': '0', 'errmsg': '发布成功', "data": {"house_id": house.pk}})
 
       
