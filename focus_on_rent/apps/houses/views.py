@@ -1,5 +1,3 @@
-
-
 # Create your views here.
 from django.views import View
 from django.conf import settings
@@ -8,9 +6,9 @@ from django.http import JsonResponse
 from apps.houses.models import House
 
 
-
 class DetailView(View):
     '''商品详情页'''
+
     def get(self, request, house_id):
         # 判断用户是否是匿名用户
         if not request.user.is_authenticated:
@@ -62,3 +60,21 @@ class DetailView(View):
         dict = {"house": house_date, "user_id": user_id}
 
         return JsonResponse({'errno': 0, 'errmsg': 'OK', 'user_id': user_id, 'dict': dict})
+
+
+class HousesView(View):
+    def get(self, request):
+        """房屋搜索"""
+        area = request.GET.get('aid')
+        start_day = request.GET.get('sd')
+        end_day = request.GET.get('ed')
+        sort_key = request.GET.get('sk')  # 排序方式
+        page = request.GET.get('p', '1')  # 查询页数  没有默认为 1
+        # 处理页数
+        page = int(page)
+        # 判断城区
+        if not area:
+            return ({'errno': 400, 'errmsg': '请选择城区城区'})
+        # 判断时间
+        if not start_day or not end_day:
+            return ({'errno': 400, 'errmsg': '请输入准确的时间'})

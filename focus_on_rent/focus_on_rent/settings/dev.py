@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     'apps.houses',
     'apps.order',
     'apps.verifications',
+
 ]
 
 MIDDLEWARE = [
@@ -213,6 +214,7 @@ LOGGING = {
 }
 
 AUTH_USER_MODEL = 'users.User'
+
 
 # 链接七牛云
 QINIU_ACCESS_KEY = 'W7C7l8WrP2inZpgs98xlK8ZWjNc2Pn4f4GAtSYBC'
