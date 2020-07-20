@@ -1,14 +1,25 @@
 # Create your views here.
+import datetime
 from django.views import View
 from django.conf import settings
 from django.shortcuts import render
 from django.http import JsonResponse
-from apps.houses.models import House
 from apps.houses.models import Area
+from apps.order.models import Order
+from apps.houses.models import House
+from django.core.paginator import Paginator
+
+
+class HousesCommandView(View):
+    """首页房屋推荐"""
+    def get(self, request):
+        House.objects.filter(user=request.user)
+        pass
+
 
 
 class DetailView(View):
-    '''商品详情页'''
+    """商品详情页"""
 
     def get(self, request, house_id):
         # 判断用户是否是匿名用户
@@ -73,14 +84,83 @@ class HousesView(View):
         page = request.GET.get('p', '1')  # 查询页数  没有默认为 1
         # 处理页数
         page = int(page)
+
         # 判断城区
         if not area:
             return ({'errno': 400, 'errmsg': '请选择城区城区'})
         # 判断时间
         if not start_day or not end_day:
             return ({'errno': 400, 'errmsg': '请输入准确的时间'})
+         #都是非必传参数,所以不检验数据完整性
+        # 开始时间格式的转换
+        if start_day:
+            start_date = datetime.datetime.strptime(start_day, '%Y-%m-%d')
+        # 结束时间格式的转换
+        if end_day:
+            end_date = datetime.datetime.strptime(end_day, '%Y-%m-%d')
+        # 创建筛选条件
+        filters = {}
+        if area:
+            filters['area_id'] = area
+        # 查询时间看是否符合
+        if start_day and end_day:
+            orderes = Order.objects.filter(begin_date__gt=end_day,end_date__lte=start_day)
+        elif start_day:
+            orderes = Order.objects.filter(end_date__lte=start_day)
+        elif end_day:
+            orderes = Order.objects.filter(begin_date__gt=end_day)
+        else:
+            orderes = []
+        # 找出时间符合的订单id
+        orderes_id = [order.id for order in orderes]
+        filters['id__in']=orderes_id
+        # 根据筛选条件选择符合的房屋
+        houses = House.objects.filter(**filters)
+        # 以传递参数来进行排序
+        if sort_key == 'booking':
+            # 按照订单量查询
+            house_qs = houses.order_by('-order_count')
+        elif sort_key == 'price-inc':
+            # 按照价格从低到高
+            house_qs = houses.order_by('price')
+        elif sort_key == 'price-des':
+            # 按照价格从高到低
+            house_qs = houses.order_by('-price')
+        else:
+            house_qs = houses.order_by('-create_time')
 
+        # 分页
+        paginator = Paginator(house_qs, 3)
+        # 获取每页对象
+        page_house = paginator.page(page)
+        # 获取总页数
+        page_total = paginator.num_pages
 
+        data = {}
+        house_data = []
+        for house in page_house:
+            house_dict = {
+                "address": house.address,
+                "area_name": house.area,
+                "ctime": house.create_time,
+                "house_id": house.id,
+                "img_url": house.index_image_url,
+                "order_count": house.order_count,
+                "price": house.price,
+                "room_count": house.room_count,
+                "title": house.title,
+                "user_avatar": house.user.avatar
+            }
+            house_data.append(house_dict)
+        data['houses'] = house_data
+        data['total_page'] = page_total
+        return JsonResponse({
+            "errmsg": "请求成功",
+            "errno": "0",
+            "data": data
+        })
+
+      
 class Areas(View):
     def get(self,request):
         try:
@@ -99,3 +179,8 @@ class Areas(View):
                 return JsonResponse({"errno": "400", "errmsg": "未登录"})
         except Exception as e:
             return JsonResponse({"errno": "400", "errmsg": "获取失败"})
+
+
+       
+
+
