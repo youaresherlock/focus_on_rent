@@ -169,7 +169,7 @@ class Addlist(View, LoginRequiredJSONMixin):
                 except Exception as e:
                     return JsonResponse({'errno': 400, 'errmsg': '保存到数据库错误'})
 
-            return JsonResponse({'errno': '0', 'errmsg': '添加订单成功',  "data": {
+        return JsonResponse({'errno': '0', 'errmsg': '添加订单成功',  "data": {
                 "order_id": order.pk}
                                      })
 
