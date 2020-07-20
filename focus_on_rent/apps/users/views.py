@@ -4,6 +4,7 @@ from django.views import View
 from django.conf import settings
 from django.shortcuts import render
 from apps.users.models import User
+from apps.houses.models import House
 from django.http import JsonResponse
 from django_redis import get_redis_connection
 from focus_on_rent.utils.qiniu import storage
@@ -12,7 +13,28 @@ from django.contrib.auth import login, logout, authenticate
 from focus_on_rent.utils.views import LoginRequiredJSONMixin
 
 
+class HousesListView(View):
+    """房屋列表
+    /api/v1.0/user/houses
+    """
+    def get(self, request):
+        houses_model_list = House.objects.filter(user=request.user)
+        houses = []
+        for house in houses_model_list:
+            houses.append({
+                'address': house.address,
+                'area_name': house.area.name,
+                'ctime': house.create_time,
+                'house_id': house.id,
+                'img_url': house.index_image_url,
+                'order_count': house.order_count,
+                'price': house.price,
+                'room_count': house.room_count,
+                'title': house.title,
+                'user_avatar': settings.QINIU_ADDRESS + house.user.avatar
+            })
 
+        return JsonResponse({'data': {'houses': houses}, 'errmsg': 'ok', 'errno': 0})
 
 
 class UpPersonImageView(LoginRequiredJSONMixin,View):
@@ -20,7 +42,7 @@ class UpPersonImageView(LoginRequiredJSONMixin,View):
 
     def post(self, request):
 
-        myFile = request.FILES.get("avatar")
+        myFile = request.FILES.get("avatar").read()
 
         imageurl = storage(myFile)
 
@@ -28,14 +50,14 @@ class UpPersonImageView(LoginRequiredJSONMixin,View):
             return JsonResponse({'errno': 400, 'errmsg': '未上传图像'})
         else:
             try:
-                request.user.create(
+                User.objects.filter(id=request.user.id).update(
                     avatar=imageurl
                 )
             except Exception as e:
                 return JsonResponse({'errno': 400, 'errmsg': '图像保存到数据库错误'})
             avatar_url = settings.QINIU_ADDRESS + imageurl
-            return JsonResponse({'errno': 0, "errmsg": "头像上传成功", 'data': {avatar_url}})
-
+            data = {'avatar_url': avatar_url}
+            return JsonResponse({'errno': 0, "errmsg": "头像上传成功", 'data': {data}})
 
 
 class RegisterView(View):
@@ -180,7 +202,7 @@ class UserInfoView(LoginRequiredJSONMixin, View):
         # 响应结果
         return JsonResponse(data_dict)
 
-#
+
 class ChangeUserNameView(View):
     """修改用户名"""
 
