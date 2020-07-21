@@ -153,6 +153,30 @@ class LoginView(View):
 
 
 class Realname(View, LoginRequiredJSONMixin):
+
+    def post(self, request):
+        """登录"""
+        json_dict = json.loads(request.body.decode())
+        real_name = json_dict.get('real_name')
+        id_card = json_dict.get('id_card')
+
+        if not all([real_name, id_card]):
+            return JsonResponse({'code': 400, 'errmsg': '缺少比穿参数'})
+        if not re.match('^[1-9]\d{5}(18|19|([23]\d))\d{2}((0[1-9])|(10|11|12))(([0-2][1-9])|10|20|30|31)\d{3}[0-9Xx]$', id_card):
+            return JsonResponse({'code': 400, 'errmsg': '身份证号码有误'})
+        content = IDauth(real_name, id_card)
+        user = request.user
+        if  content.get('status') == '01':
+            try:
+                user.real_name = real_name
+                user.id_card = id_card
+                user.save()
+            except Exception as e:
+                return JsonResponse({'errno': 400, 'errmsg': '保存到数据库错误'})
+        else:
+            return JsonResponse({'errno': 400, 'errmsg': '实名制失败'})
+        return JsonResponse({"errno": "0", "errmsg": "认证信息保存成功"})
+
     def get(self, request):
         """
         获取用户real_name和id_card
@@ -169,29 +193,6 @@ class Realname(View, LoginRequiredJSONMixin):
         data = {'real_name': real_name, 'id_card': id_card}
 
         return JsonResponse({'data': data, 'errno': 0, 'errmsg': 'OK'})
-
-    def post(self, request):
-        """登录"""
-        json_dict = json.loads(request.body.decode())
-        real_name = json_dict.get('real_name')
-        id_card = json_dict.get('id_card')
-
-        if not all([real_name, id_card]):
-            return JsonResponse({'code': 400, 'errmsg': '缺少比穿参数'})
-        if not re.match('^[1-9]\d{5}(18|19|([23]\d))\d{2}((0[1-9])|(10|11|12))(([0-2][1-9])|10|20|30|31)\d{3}[0-9Xx]$'):
-            return JsonResponse({'code': 400, 'errmsg': '身份证号码有误'})
-        content = IDauth(real_name, id_card)
-        user = request.user
-        if content['status'] == '01':
-            try:
-                user.real_name = real_name
-                user.id_card = id_card
-                user.save()
-            except Exception as e:
-                return JsonResponse({'errno': 400, 'errmsg': '保存到数据库错误'})
-        else:
-            return JsonResponse({'errno': 400, 'errmsg': '实名制失败'})
-        return JsonResponse({"errno": "0", "errmsg": "认证信息保存成功"})
 
 
 class UserInfoView(LoginRequiredJSONMixin, View):

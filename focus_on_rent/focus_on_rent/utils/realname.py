@@ -1,5 +1,7 @@
 # coding=UTF-8
 import requests
+import json
+
 def IDauth(name, id_card):
 
     host = 'https://idcardcert.market.alicloudapi.com'
@@ -20,6 +22,9 @@ def IDauth(name, id_card):
     if(httpStatusCode == 200):
         print("正常请求计费(其他均不计费)")
         print(res.text)
+        content = json.loads(res.text)
+        return content
+
     else:
         httpReason = res.headers['X-Ca-Error-Message']
         if(httpStatusCode == 400 and httpReason == 'Invalid Param Location'):

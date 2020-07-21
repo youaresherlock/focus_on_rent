@@ -1,6 +1,5 @@
 import json
-import datetime
-
+from datetime import datetime
 from django.views import View
 from django.db import transaction
 from apps.order.models import Order
@@ -128,10 +127,10 @@ class Addlist(View, LoginRequiredJSONMixin):
 
         #判断是否传入错误数据
         try:
-            d1 = datetime.datetime.strptime(start_date, '%Y-%m-%d')
-            d2 = datetime.datetime.strptime(end_date, '%Y-%m-%d')
-            assert d1 < d2, Exception('开始日期大于结束日期')
-            days = (d2 - d1).days
+            start_date = datetime.strptime(start_date, '%Y-%m-%d')
+            end_date = datetime.strptime(end_date, '%Y-%m-%d')
+            assert start_date < end_date, Exception('开始日期大于结束日期')
+            days = (end_date  - start_date).days
             if days < 0:
                 return JsonResponse({'errno': 400, 'errmsg': '日期有误'})
         except Exception as e:
@@ -153,8 +152,8 @@ class Addlist(View, LoginRequiredJSONMixin):
 
                 order = Order.objects.create(user_id=user.id,
                                              house_id=house_id,
-                                             begin_date=d1,
-                                             end_date=d2,
+                                             begin_date=start_date,
+                                             end_date=end_date,
                                              days=days,
                                              amount=amount,
                                              status=Order.ORDER_STATUS['PAID'],
