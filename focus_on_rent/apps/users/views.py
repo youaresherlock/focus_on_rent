@@ -82,7 +82,8 @@ class RegisterView(View):
         if sms_code_server.decode() != sms_code_client:
             return JsonResponse({'errno': 400, 'errmsg': '验证码有误'})
         try:
-            user = User.objects.create_user(username=mobile,
+            user = User.objects.create_user(mobile=mobile,
+                                            username=mobile,
                                             password=password)
         except Exception as e:
             return JsonResponse({'errno': 400, 'errmsg': '保存数据库错误'})
@@ -102,7 +103,7 @@ class LoginView(View):
         if request.user.is_authenticated:
             user = request.user
             return JsonResponse({
-                "errno": "0",
+                "errno": 0,
                 "errmsg": "已登录",
                 "data": {
                     "user_id": user.id,
@@ -111,7 +112,7 @@ class LoginView(View):
             })
         else:
             return JsonResponse({
-                "errno": "4101",
+                "errno": 400,
                 "errmsg": "未登录"
             })
 
