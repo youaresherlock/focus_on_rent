@@ -121,7 +121,7 @@ class Addlist(View, LoginRequiredJSONMixin):
         except Exception as e:
             return JsonResponse({"errno": 400, "errmsg": "房屋不存在"})
         #是否房主
-        if user == house.user:
+        if user.id == house.user.id:
             return JsonResponse({"errno": 400, "errmsg": "是房主无法预定"})
 
         #跳转页面
@@ -130,27 +130,20 @@ class Addlist(View, LoginRequiredJSONMixin):
         try:
             d1 = datetime.datetime.strptime(start_date, '%Y-%m-%d')
             d2 = datetime.datetime.strptime(end_date, '%Y-%m-%d')
-            delta = d2 - d1
-            days = delta.days
+            assert d1 < d2, Exception('开始日期大于结束日期')
+            days = (d2 - d1).days
             if days < 0:
                 return JsonResponse({'errno': 400, 'errmsg': '日期有误'})
         except Exception as e:
             return JsonResponse({'errno': 400, 'errmsg': '参数有误'})
 
-        #是否有人预定
-        result = Order.objects.filter(house=house, begin_date=d1).count()
-        if result > 0:
-
-            return JsonResponse({"errno": 400, "errmsg": "有人预定"})
-
+        #开启事务
         with transaction.atomic():
 
              save_id = transaction.savepoint()
 
              try:
-
-                price = house.price
-                amount = price * days
+                amount = days * house.price
 
                 if days < house.min_days:
                     return JsonResponse({'errno': 400, 'errmsg': '住的时间太短'})
@@ -158,38 +151,29 @@ class Addlist(View, LoginRequiredJSONMixin):
                 if days > house.max_days:
                     return JsonResponse({'errno': 400, 'errmsg': '住的时间太长'})
 
-
-                contents = Order.objects.filter(house=house_id, status=Order.ORDER_STATUS['PAID'])
-
-                for content in contents:
-                    if  (d1 - content.end_date).days > 0:
-                        return JsonResponse({'errno': 400, 'errmsg': '日期重复'})
-
-                    if (d2 - content.begin_date).days > 0:
-                        return JsonResponse({'errno': 400, 'errmsg': '日期冲突'})
-
-
-
-                order = Order.objects.create(user=user,
-                                             house_id=house,
+                order = Order.objects.create(user_id=user.id,
+                                             house_id=house_id,
                                              begin_date=d1,
                                              end_date=d2,
                                              days=days,
                                              amount=amount,
                                              status=Order.ORDER_STATUS['PAID'],
-                                             price=price,
+                                             price=house.price,
                                              )
+                # 判断用户下单的时间段是否有别的订单
 
-
-                if Order.objects.filter(house=house, begin_date=d1).count() > request:
+                count = Order.objects.filter(house_id=house_id,
+                                                 begin_date__lte=end_date,
+                                                 end_date__gte=start_date).count()
+                if count > 0:
+                    # 说明房子被别人预定
                     transaction.savepoint_rollback(save_id)
-                    return JsonResponse({'code': 400, 'errmsg': '房屋已经被预定'})
-
-
+                    return JsonResponse({'errno': 400, 'errmsg': '房子已被预定'})
 
              except Exception as e:
                  transaction.savepoint_rollback(save_id)
-                 return JsonResponse({'code': 400, 'errmsg': '下单失败'})
+                 return JsonResponse({'errno': 400, 'errmsg': '下单失败'})
+
             #提交事务
 
              transaction.savepoint_commit(save_id)
