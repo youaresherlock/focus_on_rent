@@ -14,6 +14,7 @@ from apps.houses.models import House, Facility, Area
 from celery_tasks.pictures.tasks import upload_pictures
 from focus_on_rent.utils.views import LoginRequiredJSONMixin
 from focus_on_rent.utils.recommand import similarity, recommand_list
+from focus_on_rent.utils.qiniu import storage
 
 
 logger = logging.getLogger('django')
@@ -36,12 +37,16 @@ class UploadHousePictureView(View):
             return JsonResponse({'errno': 400, 'errmsg': '只有房主才能修改房屋图片'})
 
         image_content = house_image.read()
-        image_url = upload_pictures.delay(image_content, None)
+        # image_content = json.dumps(str(image_content))
+        # image_url = upload_pictures.delay(image_content)
+        # image_url = image_url.get()
+        image_url = settings.QINIU_ADDRESS + storage(image_content)
+        print(image_url)
 
         try:
             HouseImage.objects.create(house=house, url=image_url)
             if not house.index_image_url:
-                house.index_image_url = image_url
+                house.index_image_url =  image_url
                 house.save()
         except Exception as e:
             logger.error(e)
@@ -53,22 +58,33 @@ class UploadHousePictureView(View):
 class HousesCommandView(View):
     """首页房屋推荐"""
     def get(self, request):
-        houses_model_list = House.objects.filter(user=request.user)
-        houses_ids = [str(house.id) for house in houses_model_list]
+        now = datetime.date.today()
+        house_models_list = House.objects.exclude(user=request.user)
+        houses_ids = [house.id for house in house_models_list]
+        status_list = [Order.ORDER_STATUS.get("WAIT_ACCEPT"), Order.ORDER_STATUS.get("WAIT_PAYMENT"),
+                       Order.ORDER_STATUS.get("PAID"), Order.ORDER_STATUS.get("WAIT_COMMENT")]
+        for house in house_models_list:
+            count = house.order_set.filter(status__in=status_list, begin_date__gt=now, end_date__lt=now).count()
+            if count > 0:
+                houses_ids.remove(house.id)
 
-        status = [Order.ORDER_STATUS['PAID'], Order.ORDER_STATUS['WAIT_COMMENT'], Order.ORDER_STATUS['COMPLETE']]
-        orders_model_list = Order.objects.filter(status__in=status)
-        data_set = {}
-        for order in orders_model_list:
-            user, score, item = str(order.user.id), '1', str(order.house.id)
-            data_set.setdefault(user, {})
-            data_set[user][item] = score
-        item_similarity_matrix = similarity(data_set)
-        recommands = recommand_list(data_set, item_similarity_matrix, str(request.user.id), 10, 5, houses_ids)
+        recommands = houses_ids[5::-1]
+        # houses_model_list = House.objects.filter(user=request.user)
+        # houses_ids = [house.id for house in houses_model_list]
+        #
+        # status = [Order.ORDER_STATUS['PAID'], Order.ORDER_STATUS['WAIT_COMMENT'], Order.ORDER_STATUS['COMPLETE']]
+        # orders_model_list = Order.objects.filter(status__in=status)
+        # data_set = {}
+        # for order in orders_model_list:
+        #     user, score, item = str(order.user.id), '1', str(order.house.id)
+        #     data_set.setdefault(user, {})
+        #     data_set[user][item] = score
+        # item_similarity_matrix = similarity(data_set)
+        # recommands = recommand_list(data_set, item_similarity_matrix, str(request.user.id), 10, 5, houses_ids)
 
         data_list = []
-        for house_id, _ in recommands:
-            house = House.objects.get(id=int(house_id))
+        for house_id in recommands:
+            house = House.objects.get(id=house_id)
             data_list.append({
                 'house_id': house.id,
                 'img_url': house.index_image_url,
@@ -106,6 +122,7 @@ class DetailView(View):
             img_urls = []
             for image in house.houseimage_set.all():
                 img_urls.append(image.url)
+                # print(house.user.avatar)
             house_date = {
                 "acreage": house.acreage,
                 "address": house.address,
@@ -122,16 +139,16 @@ class DetailView(View):
                 "room_count": house.room_count,
                 "title": house.title,
                 "unit": house.unit,
-                "user_avatar": settings.QINIU_ADDRESS + house.user.avatar,
+                "user_avatar": settings.QINIU_ADDRESS + str(house.user.avatar),
                 "user_id": house.user.id,
-                "user_name": house.user.name,
+                "user_name": house.user.username,
             }
         except Exception as e:
             return JsonResponse({'errno': 400, 'errmsg': '数据请求失败'})
 
-        dict = {"house": house_date, "user_id": user_id}
+        data = {"house": house_date, "user_id": user_id}
 
-        return JsonResponse({'errno': 0, 'errmsg': 'OK', 'user_id': user_id, 'dict': dict})
+        return JsonResponse({'errno': 0, 'errmsg': 'OK', 'user_id': user_id, 'data': data})
 
 
 class HousesView(View):
@@ -166,7 +183,9 @@ class HousesView(View):
             if len(house_ids1) == 0:
                 house_ids = house_ids1
             else:
+
                 for house in house_ids1:
+                    house = House.objects.get(id=house)
                     min_day = house.min_days
                     delta = datetime.timedelta(days=min_day)
                     start_date = start_date + delta
@@ -289,24 +308,25 @@ class HousesView(View):
                 save_point = transaction.savepoint()
 
                 # 设置数据到模型
-                house = House()
-                house.user = request.user
-                house.title= title,
-                house.price = price,
-                house.area = area,
-                house.address = address,
-                house.acreage = acreage,
-                house.room_count = room_count,
-                house.unit = unit,
-                house.capacity = capacity,
-                house.beds = beds,
-                house.deposit = deposit,
-                house.min_days = min_days,
-                house.max_days = max_days,
-
-                # 同步至数据库
+                # house = House()
                 try:
-                    house.save()
+                    house = House.objects.create(
+                        user = request.user,
+                        title = title,
+                        price = price,
+                        area_id = area_id,
+                        address = address,
+                        acreage = acreage,
+                        room_count = room_count,
+                        unit = unit,
+                        capacity = capacity,
+                        beds = beds,
+                        deposit = deposit,
+                        min_days = min_days,
+                        max_days = max_days,
+                    )
+                # 同步至数据库
+
                 except DatabaseError as e:
                     transaction.savepoint_rollback(save_point)
                     return JsonResponse({'errno': 400, 'errmsg': '保存房源信息失败'})

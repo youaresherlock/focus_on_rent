@@ -21,6 +21,7 @@ class HousesListView(View):
         houses_model_list = House.objects.filter(user=request.user)
         houses = []
         for house in houses_model_list:
+            print(house.index_image_url)
             houses.append({
                 'address': house.address,
                 'area_name': house.area.name,
@@ -31,7 +32,7 @@ class HousesListView(View):
                 'price': house.price,
                 'room_count': house.room_count,
                 'title': house.title,
-                'user_avatar': settings.QINIU_ADDRESS + house.user.avatar
+                'user_avatar': settings.QINIU_ADDRESS + str(house.user.avatar)
             })
 
         return JsonResponse({'data': {'houses': houses}, 'errmsg': 'ok', 'errno': 0})
@@ -56,8 +57,9 @@ class UpPersonImageView(LoginRequiredJSONMixin,View):
             except Exception as e:
                 return JsonResponse({'errno': 400, 'errmsg': '图像保存到数据库错误'})
             avatar_url = settings.QINIU_ADDRESS + imageurl
+            print(avatar_url)
             data = {'avatar_url': avatar_url}
-            return JsonResponse({'errno': 0, "errmsg": "头像上传成功", 'data': {data}})
+            return JsonResponse({'errno': 0, "errmsg": "头像上传成功", 'data': data})
 
 
 class RegisterView(View):
@@ -153,6 +155,30 @@ class LoginView(View):
 
 
 class Realname(View, LoginRequiredJSONMixin):
+
+    def post(self, request):
+        """登录"""
+        json_dict = json.loads(request.body.decode())
+        real_name = json_dict.get('real_name')
+        id_card = json_dict.get('id_card')
+
+        if not all([real_name, id_card]):
+            return JsonResponse({'code': 400, 'errmsg': '缺少比穿参数'})
+        if not re.match('^[1-9]\d{5}(18|19|([23]\d))\d{2}((0[1-9])|(10|11|12))(([0-2][1-9])|10|20|30|31)\d{3}[0-9Xx]$',id_card):
+            return JsonResponse({'code': 400, 'errmsg': '身份证号码有误'})
+        content = IDauth(real_name, id_card)
+        user = request.user
+        if content['status'] == '01':
+            try:
+                user.real_name = real_name
+                user.id_card = id_card
+                user.save()
+            except Exception as e:
+                return JsonResponse({'errno': 400, 'errmsg': '保存到数据库错误'})
+        else:
+            return JsonResponse({'errno': 400, 'errmsg': '实名制失败'})
+        return JsonResponse({"errno": "0", "errmsg": "认证信息保存成功"})
+
     def get(self, request):
         """
         获取用户real_name和id_card
@@ -170,45 +196,21 @@ class Realname(View, LoginRequiredJSONMixin):
 
         return JsonResponse({'data': data, 'errno': 0, 'errmsg': 'OK'})
 
-    def post(self, request):
-        """登录"""
-        json_dict = json.loads(request.body.decode())
-        real_name = json_dict.get('real_name')
-        id_card = json_dict.get('id_card')
-
-        if not all([real_name, id_card]):
-            return JsonResponse({'code': 400, 'errmsg': '缺少比穿参数'})
-        if not re.match('^[1-9]\d{5}(18|19|([23]\d))\d{2}((0[1-9])|(10|11|12))(([0-2][1-9])|10|20|30|31)\d{3}[0-9Xx]$'):
-            return JsonResponse({'code': 400, 'errmsg': '身份证号码有误'})
-        content = IDauth(real_name, id_card)
-        user = request.user
-        if content['status'] == '01':
-            try:
-                user.real_name = real_name
-                user.id_card = id_card
-                user.save()
-            except Exception as e:
-                return JsonResponse({'errno': 400, 'errmsg': '保存到数据库错误'})
-        else:
-            return JsonResponse({'errno': 400, 'errmsg': '实名制失败'})
-        return JsonResponse({"errno": "0", "errmsg": "认证信息保存成功"})
-
 
 class UserInfoView(LoginRequiredJSONMixin, View):
     """个人中心"""
 
     def get(self, request):
-        # 接收参数
+        # 获取参数
         avatar = request.user.avatar
-        create_time = request.user.create_time
+        create_time = request.user.date_joined
         mobile = request.user.mobile
         name = request.user.username
         user_id = request.user.id
-
         # 用户信息字典
         data_dict = {
             "data": {
-                "avatar": avatar,
+                "avatar": settings.QINIU_ADDRESS + str(avatar),
                 "create_time": create_time,
                 "mobile": mobile,
                 "name": name,
@@ -233,7 +235,7 @@ class ChangeUserNameView(View):
 
         # 校验参数
         if new_name:
-            if not re.match(r'^[a-zA-Z_0-9]{6,20}$', new_name):
+            if not re.match(r'^[a-zA-Z_0-9]{3,20}$', new_name):
                 return JsonResponse({'errno': 400, 'errmsg': '用户名格式错误'})
 
             # 修改用户名
