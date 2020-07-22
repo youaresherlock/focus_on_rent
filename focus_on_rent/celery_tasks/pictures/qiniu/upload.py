@@ -8,8 +8,6 @@ secret_key = settings.QINIU_SECRET_KEY
 # 空间名
 bucket_name = settings.QINIU_BUCKET_NAME
 
-base_url = settings.QINIU_ADDRESS
-
 
 def qiniu_upload_file(data, filename):
     """
@@ -27,10 +25,8 @@ def qiniu_upload_file(data, filename):
     # 上传文件，None是文件名，指定None的话七牛云会自动生成一个文件名，也可以自己指定，但自己指定文件名时不能上传重复的文件
     # ret, res = put_data(token, None, data=data)
     ret, res = put_data(token, filename, data=data)
-    print(ret, res)
 
     if res.status_code != 200:
         raise Exception("upload failed")
-    file_url = base_url + ret.get('key')
 
-    return file_url
+    return ret.get('key')
