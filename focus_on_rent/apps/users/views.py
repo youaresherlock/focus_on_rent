@@ -132,6 +132,8 @@ class LoginView(View):
             return JsonResponse({'errno': 400, 'errmsg': 'mobile格式错误'})
         if not re.match(r'^[0-9A-Za-z]{8,20}$', password):
             return JsonResponse({'errno': 400, 'errmsg': 'password格式错误'})
+        # 只支持用户手机号登录
+        User.USERNAME_FIELD = "mobile"
         user = authenticate(request=request, username=mobile, password=password)
         if user is None:
             return JsonResponse({'errno': 400, 'errmsg': '手机号或密码错误'})
@@ -235,16 +237,16 @@ class ChangeUserNameView(View):
         new_name = json_dict.get('name')
 
         # 校验参数
-        if new_name:
-            if not re.match(r'^[a-zA-Z_0-9]{3,20}$', new_name):
-                return JsonResponse({'errno': 400, 'errmsg': '用户名格式错误'})
-
-            # 修改用户名
-            try:
-                request.user.username = new_name
-                request.user.save()
-            except BaseException as e:
-                return JsonResponse({'errno': 400, 'errmsg': '修改用户名失败'})
+        if not new_name:
+            return JsonResponse({'errno': 400, 'errmsg': '用户名不能为空'})
+        if not re.match(r'^[a-zA-Z_0-9]{3,20}$', new_name):
+            return JsonResponse({'errno': 400, 'errmsg': '用户名格式错误'})
+        # 修改用户名
+        try:
+            request.user.username = new_name
+            request.user.save()
+        except Exception as e:
+            return JsonResponse({'errno': 400, 'errmsg': '修改用户名失败'})
 
         # 响应结果
         return JsonResponse({'errno': '0', 'errmsg': '修改成功'})
