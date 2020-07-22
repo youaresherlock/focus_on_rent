@@ -1,5 +1,6 @@
 import re
-import json 
+import json
+import base64
 from django.views import View
 from django.conf import settings
 from django.shortcuts import render
@@ -10,7 +11,7 @@ from django_redis import get_redis_connection
 from focus_on_rent.utils.realname import IDauth
 from django.contrib.auth import login, logout, authenticate
 from focus_on_rent.utils.views import LoginRequiredJSONMixin
-from celery_tasks.pictures.qiniu.upload import qiniu_upload_file
+from celery_tasks.pictures.tasks import upload_pictures
 
 
 class HousesListView(View):
@@ -49,7 +50,9 @@ class UpPersonImageView(LoginRequiredJSONMixin, View):
             return JsonResponse({'errno': 400, 'errmsg': '未上传图像'})
 
         avatar_bytes = avatar.read()
-        image_url = qiniu_upload_file(avatar_bytes, None)
+        avatar_bytes = base64.b64encode(avatar_bytes).decode()
+        image_url = upload_pictures.delay(avatar_bytes)
+        image_url = image_url.get()
         try:
             request.user.avatar = image_url
             request.user.save()

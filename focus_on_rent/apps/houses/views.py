@@ -1,5 +1,6 @@
 # Create your views here.
 import json
+import base64
 import logging
 import datetime
 from django.views import View
@@ -14,7 +15,7 @@ from apps.houses.models import House, Facility, Area
 from celery_tasks.pictures.tasks import upload_pictures
 from focus_on_rent.utils.views import LoginRequiredJSONMixin
 from focus_on_rent.utils.recommand import similarity, recommand_list
-from celery_tasks.pictures.qiniu.upload import qiniu_upload_file
+from celery_tasks.pictures.tasks import upload_pictures
 
 
 logger = logging.getLogger('django')
@@ -37,8 +38,9 @@ class UploadHousePictureView(View):
             return JsonResponse({'errno': 400, 'errmsg': '只有房主才能修改房屋图片'})
 
         image_content = house_image.read()
-        image_name = qiniu_upload_file(image_content, None)
-        image_url = settings.QINIU_ADDRESS + image_name
+        image_content = base64.b64encode(image_content).decode()
+        image_name = upload_pictures.delay(image_content)
+        image_url = settings.QINIU_ADDRESS + image_name.get()
         print(image_url)
 
         try:

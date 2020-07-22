@@ -1,4 +1,5 @@
 # 定义上传图片的异步任务
+import base64
 from celery_tasks.main import celery_app
 from celery_tasks.pictures.qiniu.upload import qiniu_upload_file
 
@@ -6,6 +7,7 @@ from celery_tasks.pictures.qiniu.upload import qiniu_upload_file
 @celery_app.task(name='upload_pictures')
 def upload_pictures(data):
     """上传图片到七牛云"""
+    data = base64.b64decode(data)
     image_url = qiniu_upload_file(data, None)
     print(image_url)
 
