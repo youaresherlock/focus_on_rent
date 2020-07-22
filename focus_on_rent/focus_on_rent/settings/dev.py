@@ -216,9 +216,7 @@ LOGGING = {
 AUTH_USER_MODEL = 'users.User'
 
 
-# 链接七牛云
+QINIU_BUCKET_NAME = "test"
 QINIU_ACCESS_KEY = 'W7C7l8WrP2inZpgs98xlK8ZWjNc2Pn4f4GAtSYBC'
 QINIU_SECRET_KEY = '7S7QE50VeKWpwyEaNI-k6Jl8rXQz6aUmFpLKjqNa'
-QINIU_BUCKET_NAME = 'itcastihome'
 QINIU_ADDRESS = 'http://qdpjw3zve.bkt.clouddn.com/'
-
