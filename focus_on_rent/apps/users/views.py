@@ -130,7 +130,6 @@ class LoginView(View):
             return JsonResponse({'errno': 400, 'errmsg': 'mobile格式错误'})
         if not re.match(r'^[0-9A-Za-z]{8,20}$', password):
             return JsonResponse({'errno': 400, 'errmsg': 'password格式错误'})
-
         user = authenticate(request=request, username=mobile, password=password)
         if user is None:
             return JsonResponse({'errno': 400, 'errmsg': '手机号或密码错误'})
@@ -210,7 +209,7 @@ class UserInfoView(LoginRequiredJSONMixin, View):
         # 用户信息字典
         data_dict = {
             "data": {
-                "avatar": settings.QINIU_ADDRESS + str(avatar),
+                "avatar_url": settings.QINIU_ADDRESS + str(avatar),
                 "create_time": create_time,
                 "mobile": mobile,
                 "name": name,

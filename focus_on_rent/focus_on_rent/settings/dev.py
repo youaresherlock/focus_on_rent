@@ -104,7 +104,7 @@ DATABASES = {
         'HOST': '127.0.0.1',  # 数据库主机
         'PORT': 3306,  # 数据库端口
         'USER': 'root',  # 数据库用户名
-        'PASSWORD': 'mysql',  # 数据库用户密码
+        'PASSWORD': 'x1430371727',  # 数据库用户密码
         'NAME': 'ihome'  # 数据库名字
     }
 }
@@ -216,7 +216,8 @@ LOGGING = {
 AUTH_USER_MODEL = 'users.User'
 
 
-QINIU_BUCKET_NAME = "test"
-QINIU_ACCESS_KEY = 'W7C7l8WrP2inZpgs98xlK8ZWjNc2Pn4f4GAtSYBC'
-QINIU_SECRET_KEY = '7S7QE50VeKWpwyEaNI-k6Jl8rXQz6aUmFpLKjqNa'
-QINIU_ADDRESS = 'http://qdpjw3zve.bkt.clouddn.com/'
+QINIU_ACCESS_KEY = 'woWaPfRhyE_XtOsX12m5kKr6u9tXVYcSMiz-heBe'
+QINIU_SECRET_KEY = 'aWN6n0cLGjIq8F4qe84rG4CHKDx2iLp175V4tTtq'
+QINIU_BUCKET_NAME = 'ihomepictures'
+QINIU_ADDRESS = 'http://qdpj13176.bkt.clouddn.com/'
+
