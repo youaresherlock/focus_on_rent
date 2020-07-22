@@ -69,7 +69,6 @@ class SMSCodeView(View):
         sms_code = '%06d' % random_num
         logger.info(sms_code)
         print(sms_code)
-        redis_conn = get_redis_connection('verify_code')
 
         pl = redis_conn.pipeline()
         pl.setex('sms_%s' % mobile, 300, sms_code)
