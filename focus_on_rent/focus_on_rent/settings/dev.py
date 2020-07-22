@@ -14,6 +14,7 @@ import os
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+print(BASE_DIR)
 
 
 # Quick-start development settings - unsuitable for production
@@ -220,4 +221,4 @@ QINIU_ACCESS_KEY = 'woWaPfRhyE_XtOsX12m5kKr6u9tXVYcSMiz-heBe'
 QINIU_SECRET_KEY = 'aWN6n0cLGjIq8F4qe84rG4CHKDx2iLp175V4tTtq'
 QINIU_BUCKET_NAME = 'ihomepictures'
 QINIU_ADDRESS = 'http://qdpj13176.bkt.clouddn.com/'
-
+QINIU_DEFAULT_AVATAR = 'default_avatar.jpg'

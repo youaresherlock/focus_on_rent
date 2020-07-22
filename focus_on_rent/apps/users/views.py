@@ -11,6 +11,7 @@ from focus_on_rent.utils.qiniu import storage
 from focus_on_rent.utils.realname import IDauth
 from django.contrib.auth import login, logout, authenticate
 from focus_on_rent.utils.views import LoginRequiredJSONMixin
+from celery_tasks.pictures.qiniu.upload import qiniu_upload_file
 
 
 class HousesListView(View):
@@ -86,7 +87,8 @@ class RegisterView(View):
         try:
             user = User.objects.create_user(mobile=mobile,
                                             username=mobile,
-                                            password=password)
+                                            password=password,
+                                            avatar=settings.QINIU_DEFAULT_AVATAR)
         except Exception as e:
             return JsonResponse({'errno': 400, 'errmsg': '保存数据库错误'})
         login(request, user)
