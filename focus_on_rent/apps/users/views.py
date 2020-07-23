@@ -3,15 +3,15 @@ import json
 import base64
 from django.views import View
 from django.conf import settings
-from django.shortcuts import render
 from apps.users.models import User
 from apps.houses.models import House
 from django.http import JsonResponse
 from django_redis import get_redis_connection
 from focus_on_rent.utils.realname import IDauth
+from celery_tasks.pictures.tasks import upload_pictures
 from django.contrib.auth import login, logout, authenticate
 from focus_on_rent.utils.views import LoginRequiredJSONMixin
-from celery_tasks.pictures.tasks import upload_pictures
+from focus_on_rent.utils.image_check import image_file
 
 
 class HousesListView(View):
@@ -48,6 +48,8 @@ class UpPersonImageView(LoginRequiredJSONMixin, View):
 
         if not avatar:
             return JsonResponse({'errno': 400, 'errmsg': '未上传图像'})
+        if not image_file(avatar):
+            return JsonResponse({'errno': 400, 'errmsg': '上传的不是图片'})
 
         avatar_bytes = avatar.read()
         avatar_bytes = base64.b64encode(avatar_bytes).decode()

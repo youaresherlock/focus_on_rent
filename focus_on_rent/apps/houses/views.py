@@ -11,6 +11,7 @@ from django.http import JsonResponse
 from apps.houses.models import HouseImage
 from django.core.paginator import Paginator
 from django.db import DatabaseError, transaction
+from focus_on_rent.utils.image_check import image_file
 from apps.houses.models import House, Facility, Area
 from celery_tasks.pictures.tasks import upload_pictures
 from focus_on_rent.utils.views import LoginRequiredJSONMixin
@@ -29,6 +30,9 @@ class UploadHousePictureView(View):
 
         if not house_image:
             return JsonResponse({'errno': 400, 'errmsg': '房屋图片为空'})
+        if not image_file(house_image):
+            return JsonResponse({'errno': 400, 'errmsg': '上传的不是图片'})
+
         try:
             house = House.objects.get(id=house_id)
         except House.DoesNotExist:
