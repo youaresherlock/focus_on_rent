@@ -5,7 +5,7 @@ import logging
 import datetime
 from django.views import View
 from django.conf import settings
-from django.shortcuts import render
+from django.core.cache import cache
 from apps.order.models import Order
 from django.http import JsonResponse
 from apps.houses.models import HouseImage
@@ -15,7 +15,6 @@ from apps.houses.models import House, Facility, Area
 from celery_tasks.pictures.tasks import upload_pictures
 from focus_on_rent.utils.views import LoginRequiredJSONMixin
 from focus_on_rent.utils.recommand import similarity, recommand_list
-from celery_tasks.pictures.tasks import upload_pictures
 
 
 logger = logging.getLogger('django')
@@ -350,24 +349,43 @@ class HousesView(View):
         return JsonResponse({'errno': '0', 'errmsg': '发布成功', "data": {"house_id": house.pk}})
 
       
-class Areas(View):
-    def get(self,request):
+class Areas(LoginRequiredJSONMixin, View):
+    """
+    /api/v1.0/areas
+    """
+    def get(self, request):
+        """获取城区列表"""
+        # 获取缓存
+        areas = cache.get('area_list')
+
+        if areas:
+            return JsonResponse({'errno': 0, 'errmsg': '获取成功', 'data': areas})
+
         try:
-            if request.user.is_authenticated:
-
-                areas=Area.objects.all()
-                data=[]
-                for area in areas:
-                    data.append({
-                        "aid": area.id,
-                        "aname": area.name,
-                    })
-
-                return JsonResponse({ "errno": 0,"errmsg": "获取成功","data":data})
-            else:
-                return JsonResponse({"errno": "400", "errmsg": "未登录"})
+            area_model_list = Area.objects.all()
         except Exception as e:
-            return JsonResponse({"errno": "400", "errmsg": "获取失败"})
+            logger.error(e)
+            return JsonResponse({'errno': 400, 'errmsg': '数据库错误'})
+        areas = []
+        for area in area_model_list:
+            areas.append({
+                'aid': area.id,
+                'aname': area.name
+            })
+        cache.set('area_list', areas, 3600)
+
+        return JsonResponse({'errno': 0, 'errmsg': '获取成功', 'data': areas})
+
+
+
+
+
+
+
+
+
+
+
 
 
        
