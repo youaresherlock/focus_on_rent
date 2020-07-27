@@ -7,5 +7,5 @@ urlpatterns = [
     path('houses/<int:house_id>', views.DetailView.as_view()),
     path('houses/<int:house_id>/images', views.UploadHousePictureView.as_view()),
     path('houses/index', views.HousesCommandView.as_view()),
-    path('areas', views.Areas.as_view()),
+    path('areas', views.AreasView.as_view()),
 ]

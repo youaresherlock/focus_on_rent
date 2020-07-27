@@ -363,7 +363,7 @@ class HousesView(View):
         return JsonResponse({'errno': '0', 'errmsg': '发布成功', "data": {"house_id": house.pk}})
 
       
-class Areas(LoginRequiredJSONMixin, View):
+class AreasView(LoginRequiredJSONMixin, View):
     """
     /api/v1.0/areas
     """

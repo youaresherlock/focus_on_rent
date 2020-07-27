@@ -49,7 +49,7 @@ class ReceiveAndRefuseView(LoginRequiredJSONMixin, View):
             return JsonResponse({'errno': 400, 'errmsg': 'action数据错误'})
 
 
-class GetOrderList(LoginRequiredJSONMixin, View):
+class GetOrderListView(LoginRequiredJSONMixin, View):
     """获取订单列表"""
 
     def get(self, request):
@@ -90,7 +90,7 @@ class GetOrderList(LoginRequiredJSONMixin, View):
         })
 
 
-class CommentOrder(LoginRequiredJSONMixin, View):
+class CommentOrderView(LoginRequiredJSONMixin, View):
     """评价订单"""
 
     def put(self, request, order_id):
@@ -111,9 +111,13 @@ class CommentOrder(LoginRequiredJSONMixin, View):
             return JsonResponse({'errno': 400, 'errmsg': '评价失败'})
         return JsonResponse({'errno': 0, 'errmsg': '评价成功'})
 
-class Addlist(View, LoginRequiredJSONMixin):
 
-    def post(self,request):
+class AddOrderView(LoginRequiredJSONMixin, View):
+    """
+    /api/v1.0/orders
+    """
+    def post(self, request):
+        """添加订单"""
 
         data_dict = json.loads(request.body.decode())
         house_id = data_dict.get('house_id')
@@ -121,125 +125,46 @@ class Addlist(View, LoginRequiredJSONMixin):
         end_date = data_dict.get('end_date')
         user = request.user
 
-        #判断完整
-        if not all([house_id,start_date,end_date]):
+        if not all([house_id, start_date, end_date]):
             return JsonResponse({'errno': 400, 'errmsg': '缺少必传参数'})
-        #是否存在
         try:
             house = House.objects.get(id=house_id)
-        except Exception as e:
+        except House.DoesNotExist as e:
             return JsonResponse({"errno": 400, "errmsg": "房屋不存在"})
-        #是否房主
         if user.id == house.user.id:
             return JsonResponse({"errno": 400, "errmsg": "是房主无法预定"})
+        sd = datetime.datetime.strptime(start_date, '%Y-%m-%d')
+        ed = datetime.datetime.strptime(end_date, '%Y-%m-%d')
+        days = (ed - sd).days
+        if days < 0:
+            return JsonResponse({'errno': 400, 'errmsg': '开始日期不能大于结束日期'})
+        if house.min_days > days:
+            return JsonResponse({'errno': 400, 'errmsg': '居住时间太短'})
+        if house.max_days != 0 and house.max_days < days:
+            return JsonResponse({'errno': 400, 'errmsg': '居住时间太长'})
 
-        #跳转页面
-
-        #判断是否传入错误数据
-        try:
-            d1 = datetime.datetime.strptime(start_date, '%Y-%m-%d')
-            d2 = datetime.datetime.strptime(end_date, '%Y-%m-%d')
-            assert d1 < d2, Exception('开始日期大于结束日期')
-            days = (d2 - d1).days
-            if days < 0:
-                return JsonResponse({'errno': 400, 'errmsg': '日期有误'})
-        except Exception as e:
-            return JsonResponse({'errno': 400, 'errmsg': '参数有误'})
-
-        #开启事务
-        # with transaction.atomic():
-        #
-        #      save_id = transaction.savepoint()
-
-         # try:
-        amount = days * house.price
-
-        if days < house.min_days:
-            return JsonResponse({'errno': 400, 'errmsg': '住的时间太短'})
-
-        if days > house.max_days:
-            return JsonResponse({'errno': 400, 'errmsg': '住的时间太长'})
-        order = Order()
-        order.user_id = user.id
-        order.house_id = house.id
-        order.begin_date = d1
-        order.end_date = d2
-        order.days = days
-        order.amount = amount
-        order.house_price = house.price
-        order.status = Order.ORDER_STATUS['WAIT_ACCEPT']
-
-        order.save()
-
-        # order = Order.objects.create(user_id=user.id,
-        #                              house_id=house_id,
-        #                              begin_date=d1,
-        #                              end_date=d2,
-        #                              days=days,
-        #                              amount=amount,
-        #                              # # status=Order.ORDER_STATUS['PAID'],
-        #                              price=house.price,
-        #                              )
-        # 判断用户下单的时间段是否有别的订单
-
-        count = Order.objects.filter(house_id=house_id,
-                                         begin_date__lte=end_date,
-                                         end_date__gte=start_date).count()
-        if count > 0:
-            # 说明房子被别人预定
-            # transaction.savepoint_rollback(save_id)
-            return JsonResponse({'errno': 400, 'errmsg': '房子已被预定'})
-
-             # except Exception as e:
-             #     transaction.savepoint_rollback(save_id)
-             #     return JsonResponse({'errno': 400, 'errmsg': '下单失败'})
-
-            #提交事务
-
-             # transaction.savepoint_commit(save_id)
-        return JsonResponse({'errno': 0, 'errmsg': '添加订单成功',  "data": {"order_id": order.pk}})
-
-    def get(self, request):
-        user = request.user
-        role = request.GET.get('role')
-
-        if not role:
-            return JsonResponse({"errno": 400, "errmsg": "参数错误"})
-
-        if role not in ["landlord", "custom"]:
-            return JsonResponse({"errno": 400, "errmsg": "参数错误"})
-
-        if role == "custom":
-            # 查询当前自己下了哪些订单
-            orders = Order.objects.filter(user=user).order_by("-create_time")
-        else:
-            # 查询自己房屋都有哪些订单
-            houses = House.objects.filter(user=user)
-            house_ids = [house.id for house in houses]
-            orders = Order.objects.filter(house_id__in=house_ids).order_by("-create_time")
-
-
-        orders_list = []
+        # 判断在时间段内,房屋是否被预定
+        orders = Order.objects.fitler(house=house, status__in=[
+            Order.ORDER_STATUS['WAIT_ACCEPT'],
+            Order.ORDER_STATUS['WAIT_PAYMENT'],
+            Order.ORDER_STATUS['PAID']
+        ])
         for order in orders:
-            order_dict = {
-                "amount":order.amount,
-                "comment":order.comment,
-                "ctime":order.create_time,
-                "days":order.days,
-                "end_date":order.end_date,
-                "img_url":order.house.index_image_url,
-                "order_id":order.id,
-                "start_date":order.begin_date,
-                "status":order.ORDER_STATUS_ENUM[order.status],
-                "title":order.house.title
-            }
-            orders_list.append(order_dict)
+            if order.begin_date < sd < order.end_date or order.begin_date < ed < order.end_date:
+                return JsonResponse({'errno': 400, 'errmsg': '房子已经被预定了'})
 
-        return JsonResponse({"errno": 0, "errmsg": "发布成功", "data": {"orders": orders_list}})
+        order = Order.objects.create(
+            user=user,
+            house=house,
+            begin_date=sd,
+            end_date=ed,
+            days=days,
+            amount=days * house.price,
+            house_price=house.price,
+            status=Order.ORDER_STATUS['WAIT_ACCEPT']
+        )
 
-
-
-
+        return JsonResponse({'errno': 0, 'errmsg': '添加订单成功',  "data": {"order_id": order.id}})
 
 
 

@@ -161,7 +161,7 @@ class LoginView(View):
         return response
 
 
-class Realname(View, LoginRequiredJSONMixin):
+class RealnameView(View, LoginRequiredJSONMixin):
 
     def post(self, request):
         """登录"""
