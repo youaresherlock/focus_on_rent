@@ -2,7 +2,6 @@ import json
 import datetime
 
 from django.views import View
-from django.db import transaction
 from apps.order.models import Order
 from apps.houses.models import House
 from django.http import JsonResponse
@@ -86,15 +85,12 @@ class CommentOrderView(LoginRequiredJSONMixin, View):
             return JsonResponse({"errno": 400, "errmsg": "请填写评论内容"})
         try:
             order = Order.objects.get(id=order_id, status=Order.ORDER_STATUS['WAIT_COMMENT'])
-        except Exception:
+        except Order.DoesNotExist:
             return JsonResponse({'errno': 400, 'errmsg': '订单信息查询失败'})
-        try:
-            order.comment = comment
-            order.house.order_count += 1
-            order.status = Order.ORDER_STATUS['COMPLETE']
-            order.save()
-        except Exception:
-            return JsonResponse({'errno': 400, 'errmsg': '评价失败'})
+
+        order.comment = comment
+        order.status = Order.ORDER_STATUS['COMPLETE']
+        order.save()
         return JsonResponse({'errno': 0, 'errmsg': '评价成功'})
 
 
