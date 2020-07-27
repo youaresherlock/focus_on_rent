@@ -113,12 +113,13 @@ class DetailView(View):
         # 查数据
         try:
             house = House.objects.get(id=house_id)
-            orders = house.order_set.all()
+            # 只有已完成的订单有评价
+            orders = house.order_set.filter(status=Order.ORDER_STATUS['COMPLETE'])
             comment_list = []
             for order in orders:
                 comment_list.append({
                     "comment": order.comment,
-                    "ctime": order.begin_date,
+                    "ctime": order.begin_date.strftime("%Y-%m-%d"),
                     "user_name": order.user.real_name,
                 })
             decilities = house.facility.all()
@@ -129,7 +130,6 @@ class DetailView(View):
             img_urls = []
             for image in house.houseimage_set.all():
                 img_urls.append(image.url)
-                # print(house.user.avatar)
             house_date = {
                 "acreage": house.acreage,
                 "address": house.address,
