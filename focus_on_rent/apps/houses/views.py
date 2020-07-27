@@ -14,6 +14,7 @@ from django.db import DatabaseError, transaction
 from focus_on_rent.utils.image_check import image_file
 from apps.houses.models import House, Facility, Area
 from celery_tasks.pictures.tasks import upload_pictures
+from celery_tasks.pictures.qiniu.upload import qiniu_upload_file
 from focus_on_rent.utils.views import LoginRequiredJSONMixin
 from focus_on_rent.utils.recommand import similarity, recommand_list
 
@@ -41,9 +42,12 @@ class UploadHousePictureView(View):
             return JsonResponse({'errno': 400, 'errmsg': '只有房主才能修改房屋图片'})
 
         image_content = house_image.read()
-        image_content = base64.b64encode(image_content).decode()
-        image_name = upload_pictures.delay(image_content)
-        image_url = settings.QINIU_ADDRESS + image_name.get()
+        # image_content = base64.b64encode(image_content).decode()
+        # image_name = upload_pictures.delay(image_content)
+        # image_url = settings.QINIU_ADDRESS + image_name.get()
+
+        image_url = qiniu_upload_file(image_content, None)
+        image_url = settings.QINIU_ADDRESS + image_url
         print(image_url)
 
         try:
@@ -289,21 +293,35 @@ class HousesView(View):
         deposit = json_dict.get('deposit')
         min_days = json_dict.get('min_days')
         max_days = json_dict.get('max_days')
-
+        # 判断参数是否完整
         if not all([title, price, area_id, address, room_count, unit, capacity,
-                    beds, deposit, min_days, max_days, acreage,]):
+                    beds, deposit, min_days, max_days, acreage]):
             return JsonResponse({'errno': 400, 'errmsg': '缺少必传参数'})
+        # 对参数的合理性进行校验
+        if int(price) < 0:
+            return JsonResponse({'errno': 400, 'errmsg': '价格不能为负'})
+        try:
+            area = Area.objects.get(id=area_id)
+        except Area.DoesNotExist:
+            return JsonResponse({'errno': 400, 'errmsg': 'area_id不存在'})
+        if int(room_count) < 0:
+            return JsonResponse({'errno': 400, 'errmsg': '房间数不能为负'})
+        if int(acreage) < 0:
+            return JsonResponse({'errno': 400, 'errmsg': '房间面积不能为负'})
+        if int(capacity) < 0:
+            return JsonResponse({'errno': 400, 'errmsg': '房间容纳的人数不能为负'})
+        if int(deposit) < 0:
+            return JsonResponse({'errno': 400, 'errmsg': '押金不能为负'})
+        if int(max_days) < 0 or int(min_days) < 0:
+            return JsonResponse({'errno': 400, 'errmsg': '可入住天数不能为负'})
+        if int(max_days) != 0 and int(max_days) < int(min_days):
+            return JsonResponse({'errno': 400, 'errmsg': '最大入住天数不能小于最小入住天数'})
 
         try:
             price = int(float(price) * 100)
             deposit = int(float(deposit) * 100)
-        except BaseException as e:
+        except Exception as e:
             return JsonResponse({'errno': 400, 'errmsg': '金额参数错误'})
-
-        try:
-            area = Area.objects.get(id=area_id)
-        except BaseException as e:
-            return JsonResponse({'errno': 400, 'errmsg': '地址不存在'})
 
         while True:
             # 开启事务,保证数据库操作的正确性,一致性
@@ -311,31 +329,23 @@ class HousesView(View):
                 save_point = transaction.savepoint()
 
                 # 设置数据到模型
-                # house = House()
                 try:
                     house = House.objects.create(
-                        user = request.user,
-                        title = title,
-                        price = price,
-                        area_id = area_id,
-                        address = address,
-                        acreage = acreage,
-                        room_count = room_count,
-                        unit = unit,
-                        capacity = capacity,
-                        beds = beds,
-                        deposit = deposit,
-                        min_days = min_days,
-                        max_days = max_days,
+                        user=request.user,
+                        title=title,
+                        price=price,
+                        area_id=area_id,
+                        address=address,
+                        acreage=acreage,
+                        room_count=room_count,
+                        unit=unit,
+                        capacity=capacity,
+                        beds=beds,
+                        deposit=deposit,
+                        min_days=min_days,
+                        max_days=max_days,
                     )
                 # 同步至数据库
-
-                except DatabaseError as e:
-                    transaction.savepoint_rollback(save_point)
-                    return JsonResponse({'errno': 400, 'errmsg': '保存房源信息失败'})
-
-                # 设置设施信息
-                try:
                     facility_ids = json_dict.get('facility')
                     if facility_ids:
                         facilities = Facility.objects.filter(id__in=facility_ids)
