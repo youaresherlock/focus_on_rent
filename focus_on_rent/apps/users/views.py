@@ -1,6 +1,7 @@
 import re
 import json
 import base64
+import datetime
 from django.views import View
 from django.conf import settings
 from apps.users.models import User
@@ -26,7 +27,7 @@ class HousesListView(View):
             houses.append({
                 'address': house.address,
                 'area_name': house.area.name,
-                'ctime': house.create_time,
+                'ctime': house.create_time.strftime("%Y-%m-%d %H:%M:%S"),
                 'house_id': house.id,
                 'img_url': house.index_image_url,
                 'order_count': house.order_count,
