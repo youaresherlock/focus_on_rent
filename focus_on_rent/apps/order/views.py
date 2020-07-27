@@ -12,39 +12,27 @@ from focus_on_rent.utils.views import LoginRequiredJSONMixin
 # Create your views here.
 
 class ReceiveAndRefuseView(LoginRequiredJSONMixin, View):
-    '''接单和拒单'''
+    """接单和拒单"""
 
     def put(self, request, order_id):
-        # 接收数据
-        # print(order_id)
         json_dict = json.loads(request.body.decode())
         action = json_dict.get('action')
         reason = json_dict.get('reason')
-        # 效验参数
         if action == 'accept':
-            try:
-                # Order.objects.get(id=order_id).update(status=Order.ORDER_STATUS["WAIT_COMMENT"])
-                order = Order.objects.get(id=order_id)
-                order.status=Order.ORDER_STATUS["WAIT_COMMENT"]
-                order.save()
-            except Exception as e:
-                return JsonResponse({'errno': 400, 'errmsg': '数据保存失败'})
-            return JsonResponse({'errno': 0, 'errmsg': '操作成功'})
+            order = Order.objects.get(id=order_id)
+            order.status = Order.ORDER_STATUS["WAIT_COMMENT"]
+            order.house.order_count += 1
+            order.house.save()
+            order.save()
+            return JsonResponse({'errno': 0, 'errmsg': '房东已接单'})
         elif action == 'reject':
             if not reason:
                 return JsonResponse({'errno': 400, 'errmsg': '缺少reason参数'})
-            try:
-                # Order.objects.filter(id=order_id).update(
-                #     status=Order.ORDER_STATUS_ENUM["REJECTED"],
-                #     comment=reason,
-                # )
-                order = Order.objects.get(id=order_id)
-                order.status = Order.ORDER_STATUS["REJECTED"]
-                # order.comment = reason
-                order.save()
-            except Exception as e:
-                return JsonResponse({'errno': 400, 'errmsg': '数据保存失败'})
-            return JsonResponse({'errno': 0, 'errmsg': '操作成功'})
+            order = Order.objects.get(id=order_id)
+            order.status = Order.ORDER_STATUS["REJECTED"]
+            order.comment = reason
+            order.save()
+            return JsonResponse({'errno': 0, 'errmsg': '拒单成功'})
         else:
             return JsonResponse({'errno': 400, 'errmsg': 'action数据错误'})
 
@@ -56,8 +44,6 @@ class GetOrderListView(LoginRequiredJSONMixin, View):
         # 获取角色类型参数
         role = request.GET.get('role')
         user = request.user
-        if not user:
-            return JsonResponse({'errno': 400, 'errmsg': '缺少必要参数', })
         if not role:
             return JsonResponse({'errno': 400, 'errmsg': '缺少必要参数', })
         if role == 'custom':
@@ -147,7 +133,9 @@ class AddOrderView(LoginRequiredJSONMixin, View):
         orders = Order.objects.fitler(house=house, status__in=[
             Order.ORDER_STATUS['WAIT_ACCEPT'],
             Order.ORDER_STATUS['WAIT_PAYMENT'],
-            Order.ORDER_STATUS['PAID']
+            Order.ORDER_STATUS['PAID'],
+            Order.ORDER_STATUS['WAIT_COMMENT'],
+            Order.ORDER_STATUS['COMPLETE']
         ])
         for order in orders:
             if order.begin_date < sd < order.end_date or order.begin_date < ed < order.end_date:
